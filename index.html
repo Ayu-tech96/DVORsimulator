@@ -2,1942 +2,1105 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ILS GP Analyzer v10 — Ayush Kaushik</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DVOR Simulator v6</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+/* ═══ RESET & TOKENS ═══ */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#06090f;--bg2:#0b1018;--bg3:#111822;--bg4:#172030;--bg5:#1e2c3e;
-  --bdr:#1a2840;--bdr2:#243650;--bdr3:#2e4468;
-  --tx:#d0e4f8;--tx2:#7da8cc;--tx3:#3d6a90;--tx4:#243650;
-  --blue:#1e9cd8;--blue2:#1270a0;--blue3:#0a4a70;
-  --teal:#12b880;--teal2:#0a7a54;
-  --amber:#d48820;--amber2:#9a6010;
-  --red:#c03030;--red2:#7a1a1a;
-  --purple:#7060d0;--green:#28a040;--green2:#186028;
-  --ok:#12b880;--warn:#d48820;--err:#c03030;
-  --mono:'Share Tech Mono',monospace;
-  --sans:'Rajdhani',sans-serif;
-  --glow-blue:0 0 12px rgba(30,156,216,.3);
-  --sb-w:270px;
-  --topbar-h:48px;
+  --bg:#07090e;--bg2:#0d1520;--bg3:#131e30;--bg4:#192840;--bg5:#1e3050;
+  --bdr:#192840;--bdr2:#243858;--bdr3:#304870;
+  --tx:#ccddf0;--tx2:#6888aa;--tx3:#364e66;
+  --blue:#2474c8;--teal:#16966a;--amber:#c07808;--red:#b83030;--green:#4a9010;
+  --fok:#16966a;--fwarn:#c07808;--ferr:#b83030;
+  /* fluid sizing */
+  --pad:clamp(7px,1.4vw,14px);
+  --gap:clamp(5px,0.9vw,10px);
+  --fs:clamp(10px,1vw,12px);
+  --fs-sm:clamp(9px,.88vw,11px);
+  --fs-xs:clamp(8px,.78vw,10px);
+  --fs-lg:clamp(14px,1.6vw,20px);
+  --lp-w:clamp(230px,22vw,290px);
+  --ring:clamp(160px,17vw,230px);
 }
+html{overflow-x:hidden}
+body{background:var(--bg);color:var(--tx);font-family:'Courier New',monospace;font-size:var(--fs);padding:var(--pad);min-height:100vh;overflow-x:hidden}
 
-/* ── BASE ── */
-html{height:100%}
-body{
-  background:var(--bg);color:var(--tx);
-  font-family:var(--mono);font-size:clamp(11px,1.4vw,13px);
-  min-height:100%;display:flex;flex-direction:column;
-  /* allow page to scroll naturally on all devices */
-  overflow-x:hidden;
-}
+/* ── topbar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;padding-bottom:var(--gap);margin-bottom:var(--gap);border-bottom:1px solid var(--bdr2)}
+.topbar h1{font-size:var(--fs-xs);letter-spacing:.14em;text-transform:uppercase;color:var(--tx2);flex-shrink:1;min-width:0}
+.badges{display:flex;gap:3px;flex-wrap:wrap}
+.badge{font-size:var(--fs-xs);padding:2px 6px;border-radius:3px;background:var(--bg3);border:1px solid var(--bdr2);color:var(--tx3);white-space:nowrap}
+.badge.live{color:var(--teal);border-color:var(--teal)}
 
-/* scanline — desktop only, skip on mobile to save GPU */
-@media(min-width:769px){
-  body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);pointer-events:none;z-index:999}
-}
+/* ── root ── */
+.root{display:grid;grid-template-columns:var(--lp-w) minmax(0,1fr);gap:var(--gap);align-items:start;width:100%}
 
-/* ── TOPBAR ── */
-.topbar{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 12px;height:var(--topbar-h);
-  background:var(--bg2);border-bottom:1px solid var(--bdr2);
-  flex-shrink:0;position:sticky;top:0;z-index:200;
-}
-.topbar::before{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--blue),transparent);opacity:.6;pointer-events:none}
-.tb-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-.logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.logo-icon{width:30px;height:30px;border:1px solid var(--blue);border-radius:3px;background:var(--bg3);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
-.logo-icon::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--blue3),transparent);opacity:.5}
-.logo-icon svg{width:16px;height:16px;color:var(--blue);position:relative;z-index:1}
-.app-title{font-family:var(--sans);font-size:clamp(11px,1.8vw,14px);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tx);white-space:nowrap}
-.app-sub{font-size:clamp(7px,1vw,9px);color:var(--tx3);letter-spacing:.08em;margin-top:1px;white-space:nowrap}
-/* chips: hide less-important ones on small screens */
-.tb-chips{display:flex;gap:4px;align-items:center;flex-wrap:nowrap;overflow:hidden}
-.chip{font-size:clamp(8px,1vw,9px);padding:2px 6px;border-radius:2px;border:1px solid;letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono);white-space:nowrap;flex-shrink:0}
-.chip-hide-sm{} /* toggled below */
-.tb-right{display:flex;gap:5px;align-items:center;flex-shrink:0}
-.tbtn{
-  font-size:clamp(9px,1.1vw,10px);padding:6px 10px;border-radius:2px;
-  cursor:pointer;border:1px solid;background:transparent;
-  font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase;
-  transition:all .15s;display:flex;align-items:center;gap:4px;
-  white-space:nowrap;-webkit-tap-highlight-color:transparent;
-  min-height:36px; /* comfortable touch target */
-}
-.tbtn:active{transform:scale(.96)}
-.btn-run{border-color:var(--blue);color:var(--blue)}.btn-run:hover{background:var(--blue3);box-shadow:var(--glow-blue)}
-.btn-exp{border-color:var(--bdr3);color:var(--tx2)}.btn-exp:hover{background:var(--bg4)}
-.btn-rst{border-color:var(--bdr2);color:var(--tx3)}.btn-rst:hover{background:var(--bg3)}
-.author-tag{font-size:9px;color:var(--tx3);border-left:1px solid var(--bdr2);padding-left:10px;line-height:1.5;white-space:nowrap}
-.author-tag strong{color:var(--blue);display:block;font-size:10px}
+/* ── left panel ── */
+.lp{background:var(--bg2);border:1px solid var(--bdr2);border-radius:6px;padding:var(--pad);position:sticky;top:var(--pad);max-height:calc(100vh - 2*var(--pad) - 52px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
+.slbl{font-size:var(--fs-xs);font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--tx3);margin:9px 0 4px;padding-bottom:2px;border-bottom:1px solid var(--bdr)}
+.slbl:first-child{margin-top:0}
+.cr{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.cr label{font-size:var(--fs-sm);color:var(--tx2);flex:0 0 44%;min-width:0;line-height:1.3}
+.cr input[type=range]{flex:1;min-width:0;accent-color:var(--blue);cursor:pointer;height:3px}
+.vv{font-size:var(--fs-sm);font-weight:700;min-width:56px;text-align:right;color:var(--tx);font-family:'Courier New',monospace;flex-shrink:0}
+.cr select{flex:1;min-width:0;font-size:var(--fs-sm);padding:2px 3px;border-radius:3px;border:1px solid var(--bdr2);background:var(--bg3);color:var(--tx)}
+.tr{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.tr label{font-size:var(--fs-sm);color:var(--tx2);flex:1;cursor:pointer;min-width:0}
+.tr input[type=checkbox]{accent-color:var(--blue);cursor:pointer;flex-shrink:0;width:12px;height:12px}
+/* info box */
+.info{font-size:var(--fs-xs);color:var(--tx3);padding:3px 6px 4px;line-height:1.55;border-left:2px solid var(--bdr2);margin-bottom:4px}
+.info b{color:var(--tx2)}
+/* read-only row */
+.ro{display:flex;align-items:center;gap:4px;margin-bottom:4px;background:var(--bg3);border-radius:3px;padding:3px 6px;border:1px solid var(--bdr)}
+.ro-l{font-size:var(--fs-xs);color:var(--tx3);flex:1;min-width:0}
+.ro-v{font-size:var(--fs-sm);font-weight:700;color:var(--teal);font-family:'Courier New',monospace;white-space:nowrap}
+/* metrics */
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px}
+.mc{background:var(--bg3);border-radius:4px;padding:6px 8px;border:1px solid var(--bdr);min-width:0;overflow:hidden}
+.ml{font-size:var(--fs-xs);letter-spacing:.07em;text-transform:uppercase;color:var(--tx3);margin-bottom:2px}
+.mv{font-size:var(--fs-lg);font-weight:700;color:var(--tx);font-family:'Courier New',monospace;line-height:1.1;word-break:break-all}
+.mu{font-size:var(--fs-xs);color:var(--tx3);margin-left:1px}
+.mc.ok .mv{color:var(--teal)}.mc.warn .mv{color:var(--amber)}.mc.err .mv{color:var(--red)}
+.stbar{margin-top:6px;padding:5px 8px;border-radius:4px;font-size:var(--fs-xs);line-height:1.6;background:var(--bg3);border-left:3px solid var(--blue);color:var(--tx2);word-break:break-word}
+.stbar.warn{border-left-color:var(--amber);color:var(--amber)}
+.stbar.err{border-left-color:var(--red);color:var(--red)}
+/* antenna table */
+.aet{width:100%;border-collapse:collapse;font-size:var(--fs-xs);table-layout:fixed}
+.aet th{background:var(--bg4);color:var(--tx3);padding:2px 3px;border:1px solid var(--bdr2);text-align:center;overflow:hidden}
+.aet td{padding:2px 3px;border:1px solid var(--bdr);text-align:center;color:var(--tx2);overflow:hidden}
+.aet input[type=number]{width:100%;max-width:50px;background:var(--bg4);border:1px solid var(--bdr2);color:var(--tx);padding:1px 2px;border-radius:2px;font-family:'Courier New',monospace;font-size:var(--fs-xs);text-align:right}
+.aet-wrap{max-height:170px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--bdr);border-radius:3px;margin-top:3px;width:100%}
 
-/* hamburger — shown only on mobile/tablet */
-.ham-btn{
-  display:none;flex-direction:column;justify-content:center;gap:5px;
-  width:36px;height:36px;padding:6px;cursor:pointer;
-  border:1px solid var(--bdr2);border-radius:2px;background:var(--bg4);
-  flex-shrink:0;-webkit-tap-highlight-color:transparent;
-}
-.ham-btn span{display:block;height:2px;background:var(--tx2);border-radius:1px;transition:all .2s}
+/* ── right ── */
+.right{display:flex;flex-direction:column;gap:var(--gap);min-width:0;overflow:hidden;width:100%}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);width:100%}
 
-/* ── SHELL ── */
-.shell{display:flex;flex:1;min-height:0;position:relative}
+/* chart card */
+.vc{background:var(--bg2);border:1px solid var(--bdr2);border-radius:6px;padding:var(--pad);min-width:0;overflow:hidden;width:100%}
+/* chart header */
+.vh{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+.vt{font-size:var(--fs-sm);font-weight:700;color:var(--tx);line-height:1.3;flex:1;min-width:0}
+.vpill{font-size:var(--fs-xs);padding:2px 7px;border-radius:10px;border:1px solid;white-space:nowrap;flex-shrink:0}
+.vpill.ok{color:var(--teal);border-color:var(--teal)}
+.vpill.warn{color:var(--amber);border-color:var(--amber)}
+.vpill.err{color:var(--red);border-color:var(--red)}
+/* grey description box */
+.vd{font-size:var(--fs-xs);color:var(--tx3);margin-bottom:5px;padding:3px 6px;background:var(--bg3);border-radius:3px;line-height:1.5;border-left:2px solid var(--bdr2)}
+.vd b{color:var(--tx2)}.vd .ok{color:var(--teal)}.vd .warn{color:var(--amber)}.vd .err{color:var(--red)}
+.ch{position:relative;width:100%}
+canvas.ch-c{display:block;width:100%!important}
 
-/* ── SIDEBAR ── */
-.sidebar{
-  width:var(--sb-w);flex-shrink:0;
-  background:var(--bg2);border-right:1px solid var(--bdr2);
-  display:flex;flex-direction:column;
-  overflow-y:auto;overflow-x:hidden;
-  transition:transform .25s ease;
-}
-.sidebar::-webkit-scrollbar{width:3px}
-.sidebar::-webkit-scrollbar-track{background:var(--bg)}
-.sidebar::-webkit-scrollbar-thumb{background:var(--bdr3)}
+/* ICAO band key */
+.band-key{display:flex;gap:10px;flex-wrap:wrap;margin-top:3px}
+.band-key span{font-size:var(--fs-xs);color:var(--tx3);display:flex;align-items:center;gap:3px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
 
-/* overlay — hidden on desktop */
-.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:149;opacity:0;transition:opacity .25s}
-.sb-overlay.open{opacity:1}
+/* section tabs */
+.tabs{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:var(--gap)}
+.tab{font-size:var(--fs-xs);padding:3px 10px;border-radius:3px;border:1px solid var(--bdr2);background:var(--bg3);color:var(--tx3);cursor:pointer;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;transition:background .15s}
+.tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.tabp{display:none}.tabp.on{display:flex;flex-direction:column;gap:var(--gap)}
 
-.sb-grp{border-top:1px solid var(--bdr)}
-.sb-grp:first-child{border-top:none}
-.sb-hdr{padding:6px 12px 2px;font-size:8px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--tx4);font-family:var(--sans)}
-.nav-item{
-  display:flex;align-items:center;gap:8px;padding:10px 12px;
-  font-size:clamp(11px,1.4vw,12px);cursor:pointer;color:var(--tx2);
-  border-left:2px solid transparent;transition:all .1s;
-  font-family:var(--sans);font-weight:500;letter-spacing:.03em;
-  min-height:40px;-webkit-tap-highlight-color:transparent;
-}
-.nav-item:hover{background:var(--bg3);color:var(--tx)}
-.nav-item.active{background:var(--bg3);color:var(--blue);border-left-color:var(--blue)}
-.ni-ico{font-size:14px;width:18px;text-align:center;flex-shrink:0}
-.ni-bdg{margin-left:auto;font-size:8px;padding:1px 5px;border-radius:2px;background:var(--bg4);border:1px solid var(--bdr2);color:var(--tx3);font-family:var(--mono)}
-.nav-item.active .ni-bdg{border-color:var(--blue2);color:var(--blue)}
+/* anim controls */
+.animbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px}
+.animbar button{font-size:var(--fs-xs);padding:3px 9px;border-radius:3px;border:1px solid var(--bdr2);background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:'Courier New',monospace}
+.animbar button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.animbar select{font-size:var(--fs-xs);padding:2px;background:var(--bg3);border:1px solid var(--bdr2);color:var(--tx);border-radius:3px}
+.animlbl{font-size:var(--fs-xs);color:var(--tx3);font-family:'Courier New',monospace}
 
-/* sidebar inputs */
-.pg{padding:6px 12px 8px}
-.frow{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
-.frow label{
-  font-size:clamp(10px,1.3vw,11px);color:var(--tx2);
-  flex:1;min-width:120px;line-height:1.4;
-  font-family:var(--sans);font-weight:500;
-}
-.frow label small{display:block;font-size:8px;color:var(--tx4);margin-top:1px;font-family:var(--mono)}
-.inp{
-  font-size:clamp(11px,1.4vw,12px);padding:6px 8px;
-  background:var(--bg4);border:1px solid var(--bdr2);border-radius:2px;
-  color:var(--tx);font-family:var(--mono);
-  width:88px;flex-shrink:0;transition:border-color .15s;
-  min-height:34px; /* touch-friendly */
-}
-.inp:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(30,156,216,.1)}
-.sel{
-  font-size:clamp(10px,1.3vw,11px);padding:7px 6px;
-  background:var(--bg4);border:1px solid var(--bdr2);border-radius:2px;
-  color:var(--tx);font-family:var(--mono);width:100%;
-  min-height:34px;
-}
-.sel:focus{outline:none;border-color:var(--blue)}
-.dir-row{display:flex;gap:4px;margin-bottom:6px}
-.dir-btn{
-  flex:1;font-size:clamp(10px,1.3vw,11px);padding:8px 4px;
-  border-radius:2px;cursor:pointer;border:1px solid var(--bdr2);
-  background:var(--bg4);color:var(--tx3);font-family:var(--mono);
-  text-align:center;transition:all .12s;letter-spacing:.04em;
-  min-height:38px;-webkit-tap-highlight-color:transparent;
-}
-.dir-btn:hover:not(.active){background:var(--bg5);color:var(--tx2)}
-.dl.active{background:rgba(30,156,216,.12);border-color:var(--blue);color:var(--blue)}
-.dr.active{background:rgba(212,136,32,.12);border-color:var(--amber);color:var(--amber)}
+/* scope legend */
+.leg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.leg span{font-size:var(--fs-xs);color:var(--tx3);display:flex;align-items:center;gap:3px}
 
-/* live box */
-.live-box{background:var(--bg3);border:1px solid var(--bdr2);border-radius:2px;padding:8px 10px;margin-bottom:6px}
-.lb-title{font-size:8px;color:var(--tx3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;font-family:var(--sans)}
-.lr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;font-size:clamp(9px,1.1vw,10px);gap:6px}
-.lr:last-child{margin-bottom:0}
-.lk{color:var(--tx4);flex-shrink:0;max-width:55%;line-height:1.3}
-.lv{font-weight:700;text-align:right;font-family:var(--mono);word-break:break-all}
-.lv.b{color:var(--blue)}.lv.a{color:var(--amber)}.lv.t{color:var(--teal)}.lv.w{color:var(--warn)}.lv.e{color:var(--err)}.lv.p{color:var(--purple)}
+/* NAV panel */
+.nav-panel{display:grid;grid-template-columns:var(--ring) minmax(0,1fr);gap:var(--gap);align-items:start;overflow:hidden;width:100%}
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+#c-ring{display:block;max-width:100%}
+.fmi-wrap{overflow-y:auto;overflow-x:hidden;max-height:clamp(160px,26vh,290px);border:1px solid var(--bdr);border-radius:3px;width:100%;min-width:0}
+.fmi-tbl{width:100%;border-collapse:collapse;font-size:var(--fs-xs);table-layout:fixed}
+.fmi-tbl th{background:var(--bg4);color:var(--tx3);padding:3px 4px;border:1px solid var(--bdr2);position:sticky;top:0;z-index:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fmi-tbl td{padding:3px 4px;border:1px solid var(--bdr);text-align:right;font-family:'Courier New',monospace;overflow:hidden}
+.fmi-tbl td:first-child{text-align:center;color:var(--tx3)}
+.fmi-tbl tr.r-ok td{background:rgba(22,150,106,.07)}
+.fmi-tbl tr.r-warn td{background:rgba(192,120,8,.09)}
+.fmi-tbl tr.r-err td{background:rgba(184,48,48,.12)}
 
-/* upload */
-.upz{margin:4px 12px;border:1px dashed var(--bdr3);border-radius:2px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
-.upz:hover,.upz:active{border-color:var(--blue);background:var(--bg3)}
-.upz-icon{font-size:20px;color:var(--tx3);display:block;margin-bottom:5px}
-.upz-t{font-size:clamp(10px,1.3vw,11px);color:var(--tx2);margin-bottom:2px;font-family:var(--sans);font-weight:600}
-.upz-s{font-size:8px;color:var(--tx3)}
-.pill{display:inline-flex;align-items:center;gap:5px;font-size:9px;padding:3px 8px;border-radius:10px;margin:4px 12px;border:1px solid var(--bdr2);color:var(--tx3);font-family:var(--mono)}
-.pill.ok{border-color:var(--teal2);color:var(--teal)}
-.pill.err{border-color:var(--red2);color:var(--red)}
-.pill.warn{border-color:var(--amber2);color:var(--amber)}
-.pdot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
-.slink{font-size:clamp(10px,1.3vw,11px);color:var(--blue);cursor:pointer;padding:4px 12px;display:block;font-family:var(--sans);-webkit-tap-highlight-color:transparent}
-.slink:hover{color:var(--tx)}
-
-/* footer */
-.sb-foot{padding:10px 12px;border-top:1px solid var(--bdr);display:flex;align-items:center;gap:8px;background:var(--bg2)}
-.sdot{width:8px;height:8px;border-radius:50%;background:var(--bdr3);flex-shrink:0;transition:all .3s}
-.sdot.ok{background:var(--teal);box-shadow:0 0 8px var(--teal)}
-.sdot.warn{background:var(--amber);box-shadow:0 0 8px var(--amber)}
-.sdot.err{background:var(--red);box-shadow:0 0 8px var(--red)}
-.stxt{font-size:clamp(9px,1.1vw,10px);color:var(--tx2);font-family:var(--sans)}
-
-/* ── MAIN CONTENT ── */
-.main{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg);padding:clamp(10px,2vw,16px)}
-.main::-webkit-scrollbar{width:4px}
-.main::-webkit-scrollbar-track{background:var(--bg)}
-.main::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:2px}
-.page{display:none}.page.active{display:block}
-
-/* ── SECTION HEADERS ── */
-.sec{display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:4px}
-.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--bdr2),transparent)}
-.sec-txt{font-size:clamp(8px,1vw,9px);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);white-space:nowrap;font-family:var(--sans)}
-
-/* ── SETUP PAGE ── */
-.type-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:12px}
-.tcard{background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:12px;position:relative;overflow:hidden}
-.tcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.tc-nr::before{background:var(--green)}.tc-sr::before{background:var(--blue)}.tc-ma::before{background:var(--amber)}
-.tc-name{font-family:var(--sans);font-size:clamp(11px,1.4vw,12px);font-weight:700;margin-bottom:5px}
-.tc-nr .tc-name{color:var(--green)}.tc-sr .tc-name{color:var(--blue)}.tc-ma .tc-name{color:var(--amber)}
-.tc-body{font-size:clamp(9px,1.1vw,10px);color:var(--tx3);line-height:1.7}
-.tc-body b{color:var(--tx2)}
-.tc-body code{color:var(--teal);background:rgba(18,184,128,.08);padding:1px 4px;border-radius:2px;font-size:0.95em}
-.tc-nf{margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr);font-size:clamp(9px,1.1vw,10px);color:var(--tx4)}
-.tc-nf strong{color:var(--purple)}
-
-/* formula box */
-.fbox{background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:10px 12px;margin-bottom:10px}
-.fbox-title{font-size:clamp(8px,1vw,9px);color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;font-family:var(--sans)}
-.fbox-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
-.fitem{padding:8px 10px;background:var(--bg3);border-radius:2px;border:1px solid var(--bdr)}
-.fi-label{font-size:clamp(8px,1vw,9px);color:var(--tx4);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;font-family:var(--sans)}
-.fi-formula{font-size:clamp(10px,1.3vw,11px);color:var(--teal);font-style:italic;line-height:1.6}
-.fi-note{font-size:clamp(9px,1.1vw,10px);color:var(--tx3);margin-top:3px;line-height:1.5}
-
-/* ── RESULTS GRIDS ── */
-.r3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:10px}
-.r2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-bottom:10px}
-.r4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
-.rcard{background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:12px;text-align:center;position:relative;overflow:hidden}
-.rcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.rc-t::before{background:var(--teal)}.rc-b::before{background:var(--blue)}.rc-a::before{background:var(--amber)}
-.rc-p::before{background:var(--purple)}.rc-g::before{background:var(--green)}
-.rc-ok::before{background:var(--ok)}.rc-err::before{background:var(--err)}.rc-warn::before{background:var(--warn)}
-.rc-label{font-size:clamp(8px,1vw,9px);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;font-family:var(--sans);font-weight:600}
-.rc-t .rc-label{color:var(--teal)}.rc-b .rc-label{color:var(--blue)}.rc-a .rc-label{color:var(--amber)}
-.rc-p .rc-label{color:var(--purple)}.rc-g .rc-label{color:var(--green)}
-.rc-ok .rc-label{color:var(--ok)}.rc-err .rc-label{color:var(--err)}.rc-warn .rc-label{color:var(--warn)}
-.rc-formula{font-size:clamp(8px,1vw,9px);color:var(--tx4);margin-bottom:6px;font-style:italic;font-family:var(--mono)}
-.rc-val{font-size:clamp(18px,2.5vw,24px);font-weight:700;line-height:1;color:var(--tx);font-family:var(--sans)}
-.rc-val.t{color:var(--teal)}.rc-val.e{color:var(--red)}.rc-val.w{color:var(--amber)}
-.rc-unit{font-size:clamp(9px,1.1vw,10px);color:var(--tx3);margin-top:4px;font-family:var(--mono)}
-.rc-sub{font-size:clamp(9px,1.1vw,10px);color:var(--tx2);margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr);line-height:1.5;text-align:left;font-family:var(--mono)}
-
-/* tabs */
-.tab-row{display:flex;border-bottom:1px solid var(--bdr2);margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tab{
-  font-size:clamp(10px,1.3vw,11px);padding:8px 14px;cursor:pointer;
-  border:none;background:transparent;color:var(--tx3);
-  border-bottom:2px solid transparent;margin-bottom:-1px;
-  font-family:var(--sans);font-weight:600;letter-spacing:.05em;text-transform:uppercase;
-  transition:all .12s;white-space:nowrap;min-height:38px;
-  -webkit-tap-highlight-color:transparent;
-}
-.tab:hover{color:var(--tx2)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-.tpane{display:none}.tpane.active{display:block}
-
-/* param table */
-.ptbl{width:100%;border-collapse:collapse}
-.ptbl tr{border-bottom:1px solid var(--bdr)}.ptbl tr:last-child{border-bottom:none}
-.ptbl td{padding:7px 4px;font-size:clamp(10px,1.3vw,11px);vertical-align:top}
-.ptbl td:first-child{color:var(--tx3);width:55%;padding-right:10px;font-family:var(--sans)}
-.ptbl td:last-child{color:var(--tx);font-family:var(--mono);text-align:right;word-break:break-word}
-.ptbl tr.sec-row td{color:var(--tx4);font-size:clamp(8px,1vw,9px);letter-spacing:.12em;text-transform:uppercase;padding-top:10px;padding-bottom:3px;font-family:var(--sans)}
-
-/* alerts */
-.alert{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;margin-bottom:6px;border-left:3px solid;border-radius:0 2px 2px 0;font-size:clamp(10px,1.3vw,11px);font-family:var(--sans);line-height:1.5}
-.alert.ok{background:rgba(18,184,128,.07);border-color:var(--teal);color:#6ed4a8}
-.alert.warn{background:rgba(212,136,32,.07);border-color:var(--amber);color:#d4a860}
-.alert.err{background:rgba(192,48,48,.07);border-color:var(--red);color:#d47070}
-.alert.info{background:rgba(30,156,216,.07);border-color:var(--blue);color:#70aed4}
-.alert-ico{font-size:14px;flex-shrink:0;margin-top:1px}
-
-/* data grid */
-.gtw{overflow:auto;max-height:min(50vh,220px);border:1px solid var(--bdr);border-radius:2px;-webkit-overflow-scrolling:touch}
-.gt{font-size:clamp(8px,1vw,9px);border-collapse:collapse;min-width:100%}
-.gt th{background:var(--bg3);padding:4px 6px;border:1px solid var(--bdr);color:var(--tx3);font-weight:700;position:sticky;top:0;white-space:nowrap;font-family:var(--sans)}
-.gt td{padding:3px 6px;border:1px solid var(--bdr);color:var(--tx3);text-align:right;font-family:var(--mono)}
-.gt td.fix{background:var(--bg3);color:var(--tx2);position:sticky;left:0;font-weight:700}
-.gt td.has{color:var(--blue);background:rgba(30,156,216,.06)}
-.gt td.ec{color:var(--tx4);background:var(--bg)}
-.gt td.ar{background:rgba(212,136,32,.06)}
-.gt td.ac{background:rgba(212,136,32,.18);color:var(--amber);font-weight:700}
-.gt td.fix.ar{background:rgba(212,136,32,.12);color:var(--amber)}
-.gt td.tr{background:rgba(18,184,128,.07)}
-.gt td.fix.tr{background:rgba(18,184,128,.1);color:var(--teal)}
-
-/* OCS list */
-.ocs-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bdr);font-size:clamp(10px,1.3vw,11px);gap:8px}
-.ocs-item:last-child{border-bottom:none}
-.badge{font-size:clamp(8px,1vw,9px);padding:2px 7px;border-radius:10px;font-weight:700;font-family:var(--mono);flex-shrink:0}
-.b-ok{background:rgba(18,184,128,.12);border:1px solid var(--teal2);color:var(--teal)}
-.b-err{background:rgba(192,48,48,.1);border:1px solid var(--red2);color:var(--red)}
-
-/* charts */
-.cpanel{background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:12px;margin-bottom:10px}
-.cp-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px}
-.cp-title{font-size:clamp(8px,1vw,9px);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);font-family:var(--sans)}
-.cleg{display:flex;flex-wrap:wrap;gap:8px}
-.cli{display:flex;align-items:center;gap:4px;font-size:clamp(8px,1vw,9px);color:var(--tx3);font-family:var(--sans)}
-.cldot{width:14px;height:2px;border-radius:1px;flex-shrink:0}
-.cnote{font-size:clamp(9px,1.1vw,10px);color:var(--tx3);padding:8px 10px;background:var(--bg3);border-left:2px solid var(--blue2);margin-top:8px;line-height:1.5;font-family:var(--sans)}
-
-/* validation table */
-.vtbl{width:100%;border-collapse:collapse;font-size:clamp(9px,1.1vw,10px)}
-.vtbl th{background:var(--bg3);padding:5px 7px;border:1px solid var(--bdr);font-size:clamp(7px,.9vw,8px);color:var(--tx3);letter-spacing:.04em;text-transform:uppercase;font-family:var(--sans);white-space:nowrap}
-.vtbl td{padding:5px 7px;border:1px solid var(--bdr);font-family:var(--mono);text-align:right;white-space:nowrap}
-.vtbl td:first-child,.vtbl td:nth-child(2){text-align:left}
-.vtbl td.b{color:var(--blue)}.vtbl td.t{color:var(--teal)}.vtbl td.a{color:var(--amber)}.vtbl td.p{color:var(--purple)}.vtbl td.g{color:var(--green)}
-.vtbl tr:nth-child(even) td{background:var(--bg3)}
-
-/* empty state */
-.empty{text-align:center;padding:3rem 1rem;color:var(--tx4)}
-.empty-ico{font-size:36px;margin-bottom:12px;display:block}
-.empty p{font-size:clamp(10px,1.3vw,11px);letter-spacing:.08em;text-transform:uppercase;font-family:var(--sans)}
-
-/* corner deco */
-.corner-deco{position:fixed;bottom:10px;right:12px;font-size:8px;color:var(--tx4);font-family:var(--sans);letter-spacing:.05em;opacity:.4;pointer-events:none}
-
-/* custom profile editable grid */
-.cgt{border-collapse:collapse;min-width:100%;font-size:clamp(9px,1.1vw,10px)}
-.cgt th{
-  background:var(--bg3);padding:4px 6px;border:1px solid var(--bdr);
-  color:var(--tx3);font-weight:700;position:sticky;top:0;
-  white-space:nowrap;font-family:var(--sans);font-size:clamp(8px,1vw,9px);
-  text-align:center;z-index:2;
-}
-.cgt th.fix-col{left:0;z-index:3;text-align:left}
-.cgt td{padding:0;border:1px solid var(--bdr);text-align:center}
-.cgt td.row-hdr{
-  background:var(--bg3);color:var(--tx2);font-family:var(--mono);
-  font-weight:700;white-space:nowrap;padding:3px 6px;
-  position:sticky;left:0;z-index:1;font-size:clamp(8px,1vw,9px);
-  min-width:60px;text-align:left;
-}
-.cgt td.row-hdr.ant-r{background:rgba(212,136,32,.15);color:var(--amber)}
-.cgt td.row-hdr.thr-r{background:rgba(18,184,128,.1);color:var(--teal)}
-.cgt td input[type=number]{
-  width:100%;min-width:58px;box-sizing:border-box;
-  background:var(--bg4);border:none;outline:none;
-  color:var(--tx);font-family:var(--mono);font-size:clamp(9px,1.1vw,10px);
-  text-align:center;padding:3px 2px;
-  -moz-appearance:textfield;height:28px;
-  transition:background .1s;
-}
-.cgt td input[type=number]::-webkit-inner-spin-button,
-.cgt td input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
-.cgt td input[type=number]:focus{background:rgba(30,156,216,.12);color:var(--tx)}
-.cgt td input[type=number].has-val{background:rgba(30,156,216,.1)}
-.cgt td.ant-c input[type=number]{background:rgba(212,136,32,.18)!important}
-.cgt td.thr-c input[type=number]{background:rgba(18,184,128,.08)!important}
-
-/* ════════════════════════════════════════════
-   TABLET  (≤ 900px) — sidebar becomes drawer
-   ════════════════════════════════════════════ */
+/* responsive */
 @media(max-width:900px){
-  .ham-btn{display:flex}
-  .author-tag{display:none}
-  .chip-hide-sm{display:none}
-  /* Sidebar: fixed drawer, slides in from left */
-  .sidebar{
-    position:fixed;top:0;left:0;bottom:0;
-    z-index:150;width:min(var(--sb-w),80vw);
-    transform:translateX(-105%);
-    border-right:1px solid var(--bdr2);
-    box-shadow:4px 0 20px rgba(0,0,0,.5);
-    /* sits below topbar visually but covers it — add top padding */
-    padding-top:var(--topbar-h);
-  }
-  .sidebar.open{transform:translateX(0)}
-  .sb-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:149;pointer-events:none;opacity:0;transition:opacity .25s}
-  .sb-overlay.open{pointer-events:all;opacity:1}
-  /* Main fills full width */
-  .main{width:100%}
+  :root{--lp-w:100%}
+  .root{grid-template-columns:1fr}
+  .lp{position:static;max-height:none}
 }
-
-/* ════════════════════════════════════════════
-   MOBILE  (≤ 520px) — tighter everything
-   ════════════════════════════════════════════ */
-@media(max-width:520px){
-  :root{--topbar-h:44px}
-  .app-sub{display:none}
-  .tb-chips{gap:3px}
-  .chip{padding:2px 5px;font-size:8px}
-  .tbtn{padding:5px 8px;font-size:9px;min-height:34px}
-  /* Stack topbar buttons tighter — hide export on very small screens */
-  .btn-exp{display:none}
-  .main{padding:8px}
-  /* Single column cards on phone */
-  .r3,.r2,.r4,.type-grid,.fbox-grid{grid-template-columns:1fr!important}
-  /* Param table: wrap values */
-  .ptbl td:last-child{text-align:left;word-break:break-all}
-  /* Chart height reduced on phone */
-  .cpanel canvas{max-height:200px}
-  /* Validation table: scrollable */
-  .vtbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:600px){
+  :root{--pad:7px;--gap:5px;--fs:10px;--fs-sm:9px;--fs-xs:8px;--ring:min(68vw,210px)}
+  .row2{grid-template-columns:1fr}
+  .nav-panel{grid-template-columns:1fr}
+  .lp{position:static;max-height:none}
 }
-
-/* ════════════════════════════════════════════
-   LARGE DESKTOP  (≥ 1400px) — more space
-   ════════════════════════════════════════════ */
 @media(min-width:1400px){
-  :root{--sb-w:300px}
-  body{font-size:13px}
-  .rc-val{font-size:26px}
-  .fbox-grid{grid-template-columns:1fr 1fr}
+  :root{--lp-w:305px;--ring:245px}
 }
 </style>
 </head>
 <body>
-
-<!-- TOPBAR -->
 <div class="topbar">
-  <div class="tb-left">
-    <!-- Hamburger — visible on tablet/mobile -->
-    <button class="ham-btn" id="hamBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
-      <span></span><span></span><span></span>
-    </button>
-    <div class="logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M10 2 L10 18 M2 10 L18 10" stroke-dasharray="2 2"/>
-          <circle cx="10" cy="10" r="7"/>
-          <circle cx="10" cy="10" r="3" fill="currentColor" opacity=".4"/>
-        </svg>
-      </div>
-      <div>
-        <div class="app-title">ILS GP Analyzer</div>
-        <div class="app-sub">0-Ref · SB-Ref · M-Array · ICAO Annex 10 · v10.0</div>
-      </div>
-    </div>
-    <div class="tb-chips">
-      <span class="chip c-blue">v10.0</span>
-      <span class="chip chip-hide-sm" id="sideChip" style="border-color:var(--bdr3);color:var(--tx3)">— GP</span>
-      <span class="chip chip-hide-sm" id="sysChip" style="border-color:var(--bdr3);color:var(--tx3)">M-Array</span>
-      <span class="chip" id="rdhChip" style="border-color:var(--bdr3);color:var(--tx3)">RDH —</span>
-      <span class="chip" id="statusChip" style="border-color:var(--bdr3);color:var(--tx3)">No data</span>
-    </div>
-  </div>
-  <div class="tb-right">
-    <div class="author-tag">
-      <strong>Ayush Kaushik</strong>
-      AM (CNS), RCDU
-    </div>
-    <button class="tbtn btn-run" onclick="runAnalysis()">▶ Run analysis</button>
-    <button class="tbtn btn-exp" onclick="exportReport()">↓ Export CSV</button>
-    <button class="tbtn btn-rst" onclick="resetAll()">↺ Reset</button>
+  <h1>DVOR Professional Simulator v6 — Correct Doppler Array Physics</h1>
+  <div class="badges">
+    <span class="badge" id="b-f">113.80 MHz</span>
+    <span class="badge" id="b-l">λ=2.6344m</span>
+    <span class="badge" id="b-r">R=6.708m</span>
+    <span class="badge" id="b-n">N=48</span>
+    <span class="badge live" id="b-anim">⏸ PAUSED</span>
   </div>
 </div>
 
-<!-- SHELL -->
-<div class="shell">
-<!-- Overlay for mobile sidebar -->
-<div class="sb-overlay" id="sbOverlay" onclick="toggleSidebar()"></div>
-<!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
-  <div class="sb-grp">
-    <div class="sb-hdr">Navigation</div>
-    <div class="nav-item active" onclick="goto('setup')" id="nav-setup"><span class="ni-ico">⚙</span>Station setup</div>
-    <div class="nav-item" onclick="goto('upload')" id="nav-upload"><span class="ni-ico">⊞</span>Profile data<span class="ni-bdg" id="nb-up">—</span></div>
-    <div class="nav-item" onclick="goto('custom')" id="nav-custom"><span class="ni-ico">✏</span>Custom profile<span class="ni-bdg" id="nb-custom" style="background:rgba(18,184,128,.12);border-color:var(--teal2);color:var(--teal)">NEW</span></div>
-    <div class="nav-item" onclick="goto('results')" id="nav-results"><span class="ni-ico">▤</span>Results</div>
-    <div class="nav-item" onclick="goto('terrain')" id="nav-terrain"><span class="ni-ico">◟</span>Terrain &amp; OCS</div>
-    <div class="nav-item" onclick="goto('calib')" id="nav-calib"><span class="ni-ico">✈</span>Calibration</div>
-    <div class="nav-item" onclick="goto('validate')" id="nav-validate"><span class="ni-ico">✓</span>Validation table</div>
+<div class="root">
+<!-- ═══ LEFT PANEL ═══ -->
+<div class="lp">
+
+  <div class="slbl">Carrier &amp; Array</div>
+  <div class="cr"><label>Carrier freq (MHz)</label>
+    <input type="range" id="freq" min="108" max="117.95" step="0.05" value="113.80">
+    <span class="vv" id="vv-f">113.80</span></div>
+  <div class="cr"><label>No. of dipoles N</label>
+    <select id="ndip">
+      <option value="12">12</option><option value="24">24</option>
+      <option value="48" selected>48 (ICAO std)</option><option value="96">96</option>
+    </select></div>
+  <div class="ro">
+    <span class="ro-l">Array radius R = 8λ/π (ICAO)</span>
+    <span class="ro-v" id="ro-r">6.708 m</span>
+  </div>
+  <div class="info"><b>R = 8λ/π</b> ensures k·R = 16 exactly → Doppler deviation = 480 Hz → FMI = 16.000 nominal. Auto-computed from frequency.</div>
+
+  <div class="slbl">Fault Simulation</div>
+  <div class="cr"><label>Sideband amplitude A</label>
+    <input type="range" id="sb" min="0.05" max="1.00" step="0.005" value="1.000">
+    <span class="vv" id="vv-sb">1.000</span></div>
+  <div class="info"><b>A = 1.0 → FMI = 16.000.</b> Reduce to simulate under-driven sideband TX: FMI drops uniformly at all azimuths.</div>
+  <div class="cr"><label>Ref mod depth m₀</label>
+    <input type="range" id="rm" min="0.05" max="0.50" step="0.001" value="0.302">
+    <span class="vv" id="vv-rm">0.302</span></div>
+  <div class="info"><b>ICAO nominal 0.30.</b> Drift in m₀ shifts FMI reference line → systematic bearing offset across all azimuths.</div>
+  <div class="cr"><label>Counterpoise ht (m AGL)</label>
+    <input type="range" id="cph" min="0.1" max="1.5" step="0.05" value="0.45">
+    <span class="vv" id="vv-cph">0.45m</span></div>
+  <div class="info"><b>Counterpoise (ground plane):</b> measured from natural ground (AGL). Typically 0.3–0.5 m AGL. This is the physical ground-plane disc the DVOR sits on.</div>
+  <div class="cr"><label>TX ht above counterpoise (m)</label>
+    <input type="range" id="txh" min="0.3" max="3.0" step="0.05" value="0.75">
+    <span class="vv" id="vv-txh">0.75m</span></div>
+  <div class="info"><b>TX height is measured above the counterpoise</b>, not from the ground. Actual dipole AGL = counterpoise AGL + TX height above counterpoise. Typical: counterpoise 0.45m + TX above c/p 0.75m = <b id="total-tx-ht">1.20m</b> AGL total. Used in knife-edge diffraction.</div>
+
+  <div class="slbl">Per-Antenna Errors (ΔR &amp; Δφ)</div>
+  <div class="tr"><label>Enable per-antenna errors</label><input type="checkbox" id="ant-en"></div>
+  <div class="cr"><label>Quick preset</label>
+    <select id="preset" onchange="applyPreset()">
+      <option value="none">All nominal</option>
+      <option value="r1">Ant#0: ΔR=+0.30m</option>
+      <option value="r2">Ant#0: ΔR=−0.20m</option>
+      <option value="a1">Ant#0: Δφ=+3.0°</option>
+      <option value="two">Multi-antenna combined</option>
+      <option value="rand">Random mfg tolerances</option>
+    </select></div>
+  <div id="aet-wrap" style="display:none">
+    <div style="font-size:var(--fs-xs);color:var(--tx3);margin:3px 0">ΔR = radial offset from nominal R &nbsp;|&nbsp; Δφ = angular position error</div>
+    <div class="aet-wrap"><table class="aet">
+      <thead><tr><th>#</th><th>ΔR(m)</th><th>Δφ(°)</th><th>Effect</th></tr></thead>
+      <tbody id="aet-body"></tbody>
+    </table></div>
   </div>
 
-  <div class="sb-grp">
-    <div class="sb-hdr">Antenna system</div>
-    <div class="pg">
-      <select class="sel" id="antSystem" onchange="liveUpdate()">
-        <option value="MA">M-Array / Capture Effect (3-elem)</option>
-        <option value="NR">Null Reference / 0-Ref (2-elem)</option>
-        <option value="SR">Sideband Reference (2-elem)</option>
-      </select>
+  <div class="slbl">Obstruction — ITU-R P.526</div>
+  <div class="tr"><label>Enable obstruction</label><input type="checkbox" id="obs-en"></div>
+  <div class="cr"><label>Tip height (m AGL)</label>
+    <input type="range" id="obs-h" min="0.5" max="60" step="0.5" value="10">
+    <span class="vv" id="vv-oh">10.0m</span></div>
+  <div class="info" style="margin-bottom:3px">All obstruction heights are <b>from natural ground (AGL)</b>, same reference as the site survey.</div>
+  <div class="cr"><label>Distance from ctr (m)</label>
+    <input type="range" id="obs-d" min="5" max="800" step="5" value="150">
+    <span class="vv" id="vv-od">150m</span></div>
+  <div class="cr"><label>Azimuth (°M)</label>
+    <input type="range" id="obs-az" min="0" max="359" step="1" value="90">
+    <span class="vv" id="vv-oaz">090°</span></div>
+  <div class="cr"><label>Width (m)</label>
+    <input type="range" id="obs-w" min="1" max="100" step="1" value="15">
+    <span class="vv" id="vv-ow">15m</span></div>
+  <div class="info">
+    Dipole AGL = <b id="tx-agl">1.20m</b> &nbsp;|&nbsp;
+    h_eff = obs_tip − dipole_AGL = <b id="eff-obs">8.8m</b><br>
+    Fresnel v = <b id="vv-fresnel">—</b> &nbsp;|&nbsp; Diffraction loss = <b id="vv-dloss">—</b> dB
+  </div>
+
+  <div class="slbl">RF Receiver</div>
+  <div class="cr"><label>Rx azimuth (°)</label>
+    <input type="range" id="rxaz" min="0" max="359" step="1" value="90">
+    <span class="vv" id="vv-rxaz">090°</span></div>
+  <div class="cr"><label>Scope window (ms)</label>
+    <input type="range" id="twin" min="5" max="200" step="5" value="50">
+    <span class="vv" id="vv-twin">50ms</span></div>
+
+  <div class="slbl">Display</div>
+  <div class="tr"><label>Show ideal reference</label><input type="checkbox" id="showref" checked></div>
+  <div class="tr"><label>Normalize polar</label><input type="checkbox" id="norm" checked></div>
+  <div class="cr"><label>Table step (°)</label>
+    <select id="tstep"><option value="1">1°</option><option value="5">5°</option>
+      <option value="10" selected>10°</option><option value="30">30°</option></select></div>
+
+  <div class="mg">
+    <div class="mc" id="mc0"><div class="ml">FMI avg</div><div class="mv" id="mv0">—</div></div>
+    <div class="mc" id="mc1"><div class="ml">FMI ref (m₀)</div><div class="mv" id="mv1">—</div></div>
+    <div class="mc" id="mc2"><div class="ml">FMI min/max</div><div class="mv" id="mv2" style="font-size:clamp(10px,1.1vw,13px);line-height:1.5">—</div></div>
+    <div class="mc" id="mc3"><div class="ml">Max brg err</div><div class="mv" id="mv3">—<span class="mu">°</span></div></div>
+    <div class="mc" id="mc4"><div class="ml">Freq dev (avg)</div><div class="mv" id="mv4">—<span class="mu">Hz</span></div></div>
+    <div class="mc" id="mc5"><div class="ml">FMI ratio v/r</div><div class="mv" id="mv5">—</div></div>
+  </div>
+  <div class="stbar" id="stbar">Initialising...</div>
+</div>
+
+<!-- ═══ RIGHT ═══ -->
+<div class="right">
+  <div class="tabs">
+    <div class="tab on"  onclick="switchTab(this,'array')">Array &amp; Pattern</div>
+    <div class="tab"     onclick="switchTab(this,'rf')">RF Time-Domain</div>
+    <div class="tab"     onclick="switchTab(this,'spectrum')">Spectrum (FFT)</div>
+    <div class="tab"     onclick="switchTab(this,'nav')">NAV Analyzer</div>
+  </div>
+
+  <!-- ══ ARRAY & PATTERN ══ -->
+  <div class="tabp on" id="tab-array">
+    <div class="row2">
+      <!-- POLAR -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">Radiation Pattern (Polar)</div>
+          <span class="vpill ok" id="pill-polar">Circular ✓</span>
+        </div>
+        <div class="vd">
+          <b>What it shows:</b> Amplitude of the sideband array output in every direction.
+          <b>Ideal:</b> <span class="ok">perfect circle</span> — DVOR encodes bearing in <b>phase, not amplitude</b>.
+          A distorted circle means antenna position errors or obstruction are present.
+          The <span class="err">red line</span> = current electronic rotation during ANIMATE mode.
+        </div>
+        <div class="animbar">
+          <button id="btn-anim" onclick="toggleAnim()">▶ ANIMATE</button>
+          <span style="font-size:var(--fs-xs);color:var(--tx3)">Speed:</span>
+          <select id="anim-spd"><option value="0.3">0.3×</option><option value="1" selected>1×</option>
+            <option value="3">3×</option><option value="10">10×</option><option value="30">30×</option></select>
+          <span class="animlbl" id="anim-angle">θ = 000°</span>
+        </div>
+        <div class="ch" style="height:clamp(190px,22vh,260px)"><canvas id="c-polar" class="ch-c" role="img" aria-label="Polar pattern"></canvas></div>
+      </div>
+      <!-- FMI STRIP -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">FMI vs Azimuth — Flight Inspection Strip</div>
+          <span class="vpill ok" id="pill-fmi">FMI OK</span>
+        </div>
+        <div class="vd">
+          <b>FMI = Δf / f_rot = 480 Hz / 30 Hz = <span class="ok">16.000 nominal</span>.</b>
+          <b>ICAO Annex 10 tolerance: <span class="ok">15.000 – 17.000</span></b> (red dashed lines).
+          A dip below 15 at any azimuth = that bearing is out-of-tolerance at the aircraft.
+          Orange dashed = reference FMI from m₀.
+        </div>
+        <div class="ch" style="height:clamp(190px,22vh,260px)"><canvas id="c-strip" class="ch-c" role="img" aria-label="FMI strip"></canvas></div>
+      </div>
+    </div>
+    <div class="row2">
+      <!-- PHASE -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">Signal Phase vs Azimuth</div>
+          <span class="vpill ok" id="pill-phase">Phase OK</span>
+        </div>
+        <div class="vd">
+          <b>What it shows:</b> The <b>bearing error introduced by antenna/obstruction errors</b> — expressed as a phase error in degrees.
+          <b>For a perfect array this is a flat line at 0°.</b>
+          This is NOT the raw atan2 of the array factor — it is the correct Doppler model:
+          phase_err(θ) = (1/N) Σ k·Δrₙ·cos(θ − φₙ).
+          <b>ICAO: ≤ ±1° site acceptance.</b>
+        </div>
+        <div class="ch" style="height:clamp(150px,17vh,200px)"><canvas id="c-phase" class="ch-c" role="img" aria-label="Phase error"></canvas></div>
+      </div>
+      <!-- BEARING ERROR -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">Bearing Error vs Azimuth</div>
+          <span class="vpill ok" id="pill-err">Brg OK</span>
+        </div>
+        <div class="vd">
+          <b>Bearing error = phase error converted to degrees</b> (same data, clearer scale).
+          <span class="ok">Green band ±1°</span> = ICAO site acceptance.
+          <span class="warn">Amber ±0.5°</span> = preferred.
+          <span class="err">Red ±2°</span> = CAT I absolute limit.
+          Perfect array = zero line. Antenna ΔR = sinusoidal, Δφ = spike at that antenna's azimuth.
+        </div>
+        <div class="ch" style="height:clamp(150px,17vh,200px)"><canvas id="c-err" class="ch-c" role="img" aria-label="Bearing error"></canvas></div>
+      </div>
+    </div>
+    <!-- PLAN VIEW -->
+    <div class="vc">
+      <div class="vt" style="margin-bottom:4px">Array Layout — Plan View (North Up, to scale)</div>
+      <div class="vd">
+        <b>Blue dots</b> = sideband dipoles at R = 8λ/π.
+        <b>Orange dot</b> = centre carrier antenna.
+        <b>Red dots</b> = antennas with position errors (displacement line to nominal).
+        <b>Red bar</b> = obstruction with shadow cone (affected azimuth sector).
+        Scale bar = 1 wavelength.
+      </div>
+      <div class="ch" style="height:clamp(160px,19vh,220px)"><canvas id="c-top" class="ch-c" role="img" aria-label="Plan view"></canvas></div>
     </div>
   </div>
 
-  <div class="sb-grp">
-    <div class="sb-hdr">Station identity</div>
-    <div class="pg">
-      <div class="frow"><label>Airport (ICAO)</label><input class="inp" type="text" id="icao" placeholder="VIDP" style="text-transform:uppercase"></div>
-      <div class="frow"><label>Runway</label><input class="inp" type="text" id="rwy" placeholder="28L"></div>
-      <div class="frow"><label>GP frequency (MHz)</label><input class="inp" type="number" id="freq" value="332.0" step="0.5" min="329" max="335" oninput="liveUpdate()"></div>
-      <div class="frow"><label>Glide angle (°)<small>Standard 3.0°</small></label><input class="inp" type="number" id="glide" value="3.0" step="0.1" min="2.5" max="5.5" oninput="liveUpdate()"></div>
-      <div class="frow"><label>Threshold elev. (m AMSL)<small>THR height above sea level</small></label><input class="inp" type="number" id="thrElev" value="7.0" step="0.1" oninput="liveUpdate()"></div>
+  <!-- ══ RF TIME-DOMAIN ══ -->
+  <div class="tabp" id="tab-rf">
+    <div class="vc">
+      <div class="vh">
+        <div class="vt">Composite RF Signal — Oscilloscope</div>
+        <span class="animlbl" id="scope-title">@ Rx 090°</span>
+      </div>
+      <div class="vd">
+        <b>DVOR composite signal:</b> s(t) = 1 + m₀·cos(2π·30t) + A·E_amp·cos(2π·9960·t + φ_FM).
+        The aircraft receiver demodulates this to extract the 30 Hz AM reference (amber) and the 9960 Hz FM subcarrier (green), then measures their phase difference to read the bearing.
+        Adjust <b>Rx azimuth</b> or press <b>▶ ANIMATE</b> on the pattern tab.
+      </div>
+      <div class="leg">
+        <span><span class="dot" style="background:#2474c8"></span>Composite envelope</span>
+        <span><span class="dot" style="background:#16966a"></span>9960 Hz FM subcarrier</span>
+        <span><span class="dot" style="background:#c07808"></span>30 Hz AM reference</span>
+      </div>
+      <div class="ch" style="height:clamp(170px,20vh,240px)"><canvas id="c-scope" class="ch-c" role="img" aria-label="Oscilloscope"></canvas></div>
+    </div>
+    <div class="row2">
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">9960 Hz FM Subcarrier — Detail</div>
+        <div class="vd">The FM subcarrier whose instantaneous frequency swings between <b>9480 Hz and 10440 Hz</b> (±480 Hz at 30 Hz rate). The <b>phase of this FM at the 30 Hz reference zero-crossing encodes the receiver azimuth.</b></div>
+        <div class="ch" style="height:clamp(140px,16vh,190px)"><canvas id="c-fm" class="ch-c" role="img" aria-label="FM subcarrier"></canvas></div>
+      </div>
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">VAR − REF Phase Difference = Encoded Bearing</div>
+        <div class="vd">The aircraft VOR receiver extracts this phase difference. <b>Ideal: a flat line equal to the receiver azimuth (°).</b> Wobble or drift = bearing error. Obstruction causes a periodic dip at the affected azimuth.</div>
+        <div class="ch" style="height:clamp(140px,16vh,190px)"><canvas id="c-phdiff" class="ch-c" role="img" aria-label="Phase difference"></canvas></div>
+      </div>
+    </div>
+    <div class="vc">
+      <div class="vt" style="margin-bottom:3px">Doppler Phase Error Sweep — Array Rotates 0° → 360°</div>
+      <div class="vd"><b>Per-azimuth bearing error</b> plotted as the electronic rotation sweeps the full circle. For a perfect array: flat at 0°. Each antenna error creates a sinusoidal ripple at its azimuth. Obstruction creates a localised dip. This is what a flight inspection recorder captures.</div>
+      <div class="ch" style="height:clamp(130px,14vh,170px)"><canvas id="c-doppler" class="ch-c" role="img" aria-label="Doppler sweep"></canvas></div>
     </div>
   </div>
 
-  <div class="sb-grp">
-    <div class="sb-hdr">GP side (stand at THR, look toward runway)</div>
-    <div class="pg">
-      <div class="dir-row">
-        <div class="dir-btn dl" id="btn-left" onclick="setSide('left')">◀ Left GP</div>
-        <div class="dir-btn dr" id="btn-right" onclick="setSide('right')">Right GP ▶</div>
-      </div>
+  <!-- ══ SPECTRUM ══ -->
+  <div class="tabp" id="tab-spectrum">
+    <div class="vc">
+      <div class="vt" style="margin-bottom:3px">RF Spectrum — Full 0–20 kHz (Hanning FFT)</div>
+      <div class="vd"><b>Frequency content of the DVOR signal at the receiver.</b> Key lines: <b>30 Hz</b> (AM reference), <b>9960 Hz</b> (FM subcarrier centre), <b>9480 &amp; 10440 Hz</b> (FM sidebands at ±480 Hz). Antenna errors or obstruction raise the inter-modulation floor and cause sideband asymmetry.</div>
+      <div class="ch" style="height:clamp(170px,22vh,250px)"><canvas id="c-fft" class="ch-c" role="img" aria-label="Full spectrum"></canvas></div>
     </div>
-  </div>
-
-  <div class="sb-grp">
-    <div class="sb-hdr">Mast position</div>
-    <div class="pg">
-      <div class="frow">
-        <label>Distance into runway from THR (m)<small>How far past the threshold line?</small></label>
-        <input class="inp" type="number" id="antOff" value="300" min="50" max="500" step="10" oninput="liveUpdate()">
+    <div class="row2">
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">9960 Hz Subcarrier — Sideband Zoom (±2 kHz)</div>
+        <div class="vd">Zoomed view of the FM subcarrier region. <b>Sidebands at 9480 Hz and 10440 Hz should be equal in amplitude.</b> Asymmetry = array or modulator fault. The carrier-to-sideband ratio is set by Bessel J₁(Δf/f_sub).</div>
+        <div class="ch" style="height:clamp(145px,17vh,205px)"><canvas id="c-fft2" class="ch-c" role="img" aria-label="Sideband spectrum"></canvas></div>
       </div>
-      <div class="frow">
-        <label>Distance from centreline (m)<small>Perpendicular to runway axis</small></label>
-        <input class="inp" type="number" id="antLat" value="120" min="10" max="150" step="5" oninput="liveUpdate()">
-      </div>
-      <div class="live-box">
-        <div class="lb-title">Quick reference (RF params only)</div>
-        <div class="lr"><span class="lk">Excel row</span><span class="lv b" id="lb-row">—</span></div>
-        <div class="lr"><span class="lk">h_lower (flat ground)</span><span class="lv t" id="lb-h1">—</span></div>
-        <div class="lr"><span class="lk">NF dist. (flat ground)</span><span class="lv p" id="lb-nf">—</span></div>
-        <div class="lr"><span class="lk">NF height (flat ground)</span><span class="lv p" id="lb-nfh">—</span></div>
-        <div class="lr" style="padding-top:5px;border-top:1px dashed var(--bdr2);margin-top:3px"><span class="lk" style="color:var(--tx3)">Mast elev. (from data)</span><span class="lv a" id="lb-elev" style="color:var(--tx3)">load data first</span></div>
-        <div class="lr"><span class="lk" style="color:var(--tx3)">RDH (from data)</span><span class="lv" id="lb-rdh" style="color:var(--tx3)">load data first</span></div>
-      </div>
-      <div style="font-size:8px;color:var(--tx4);padding:0 0 6px 2px;line-height:1.5;font-family:var(--sans)">(flat ground) = no slope correction, indicative only.<br>Actual corrected values appear in Results after analysis.</div>
-    </div>
-  </div>
-
-  <div class="sb-grp">
-    <div class="sb-hdr">Ground profile data</div>
-    <div class="upz" onclick="document.getElementById('fileIn').click()">
-      <span class="upz-icon">⇧</span>
-      <div class="upz-t">Upload Lagoon Excel proforma</div>
-      <div class="upz-s">.xlsx — with elevation data filled in</div>
-    </div>
-    <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" style="display:none">
-    <div class="pill" id="dpill"><span class="pdot"></span><span id="dtxt">No file loaded</span></div>
-    <a class="slink" onclick="loadSample()">↳ Load built-in sample data</a>
-  </div>
-
-  <div class="sb-foot">
-    <div class="sdot" id="sdot"></div>
-    <div class="stxt" id="stxt">Awaiting input</div>
-  </div>
-</div><!-- /sidebar -->
-
-<!-- MAIN CONTENT -->
-<div class="main">
-
-  <!-- ── SETUP ── -->
-  <div class="page active" id="page-setup">
-    <div class="sec"><div class="sec-txt">GP antenna system types</div><div class="sec-line"></div></div>
-    <div class="type-grid">
-      <div class="tcard tc-nr">
-        <div class="tc-name">Null Reference (0-Ref)</div>
-        <div class="tc-body">
-          <b>2 elements.</b> Lower = CSB+SBO, Upper = SBO only.<br>
-          <code>h_L = λ/(4sinθ)</code><br>
-          <code>h_U = 2·h_L = λ/(2sinθ)</code><br>
-          Ground plane: ~800 m<br>
-          Sites: level terrain, simple<br>
-          CAT I typical
-        </div>
-        <div class="tc-nf">NF formula: <strong>h_L·(h_L+h_U) / λ</strong><br>Monitor at θ elevation</div>
-      </div>
-      <div class="tcard tc-sr">
-        <div class="tc-name">Sideband Reference (SB-Ref)</div>
-        <div class="tc-body">
-          <b>2 elements.</b> Lower = CSB+SBO (anti-phase), Upper = SBO.<br>
-          <code>h_L = λ/(8sinθ)</code><br>
-          <code>h_U = 3·h_L = 3λ/(8sinθ)</code><br>
-          Ground plane: ~700 m<br>
-          Sites: descending terrain toward THR
-        </div>
-        <div class="tc-nf">NF formula: <strong>h_L·(h_L+h_U) / λ</strong><br>Monitor at <b>2θ</b> elevation</div>
-      </div>
-      <div class="tcard tc-ma">
-        <div class="tc-name">M-Array / Capture Effect</div>
-        <div class="tc-body">
-          <b>3 elements.</b> Lower SBO, Middle CSB, Upper SBO.<br>
-          <code>h₁ = λ/(4sinθ)</code>  <code>h₂ = 2h₁</code><br>
-          <code>h₃ = 3h₁</code><br>
-          Ground plane: ~550 m<br>
-          Sites: most terrain, CAT II/III
-        </div>
-        <div class="tc-nf">NF formula: <strong>h₁·(h₁+h₃) / λ</strong><br>Monitor at θ elevation</div>
-      </div>
-    </div>
-
-    <div class="fbox">
-      <div class="fbox-title">Formula reference — ICAO Annex 10 / Qu 2018</div>
-      <div class="fbox-grid">
-        <div class="fitem">
-          <div class="fi-label">NF monitor distance</div>
-          <div class="fi-formula">D<sub>NF</sub> = h<sub>lo</sub> × (h<sub>lo</sub> + h<sub>hi</sub>) / λ</div>
-          <div class="fi-note">360° phase-error point. Pattern inversion occurs here. NF monitor antenna is physically installed at this distance from the mast. (Ref: Qu 2018, SCIRP OJAPR)</div>
-        </div>
-        <div class="fitem">
-          <div class="fi-label">NF monitor antenna height</div>
-          <div class="fi-formula">h<sub>NF</sub> = D<sub>NF</sub> × tan θ &nbsp;[NR, M-Array]<br>h<sub>NF</sub> = D<sub>NF</sub> × tan 2θ &nbsp;[SB-Ref]</div>
-          <div class="fi-note">Mount height of the NF monitor antenna above local ground at the D<sub>NF</sub> position. SB-Ref monitors at twice the glide angle elevation.</div>
-        </div>
-        <div class="fitem">
-          <div class="fi-label">RDH / TCH — Reference Datum Height</div>
-          <div class="fi-formula">RDH = (Z<sub>mast</sub> + h<sub>lo</sub> − Z<sub>thr</sub>) + d × tan θ</div>
-          <div class="fi-note">Height of GP centreline above the runway threshold. Z<sub>mast</sub> = mast ground elev., Z<sub>thr</sub> = THR ground elev., d = longitudinal offset. ICAO standard: 15 m ± 3 m (50 ft ± 10 ft).</div>
-        </div>
-        <div class="fitem">
-          <div class="fi-label">Correction for RDH = 15 m</div>
-          <div class="fi-formula">d<sub>req</sub> = (15 − Z<sub>mast</sub> − h<sub>lo</sub> + Z<sub>thr</sub>) / tan θ<br>lat<sub>req</sub> = lat + (15 − RDH) / SSL</div>
-          <div class="fi-note">Two independent solutions: adjust longitudinal distance d from THR, or adjust lateral distance from C/L using sideways slope SSL. Actual values shown in Results after analysis.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- GP side SVG diagram -->
-    <div class="sec"><div class="sec-txt">GP side — view from approach direction</div><div class="sec-line"></div></div>
-    <svg viewBox="0 0 640 155" style="width:100%;background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;margin-bottom:12px" role="img" aria-label="GP side diagram">
-      <defs>
-        <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3d6a90"/></marker>
-        <marker id="arrb" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1e9cd8"/></marker>
-        <marker id="arrb2" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M6,0 L0,3 L6,6 Z" fill="#1e9cd8"/></marker>
-      </defs>
-      <text x="12" y="13" fill="#3d6a90" font-size="8" font-family="Share Tech Mono">APPROACH DIRECTION →</text>
-      <text x="12" y="82" fill="#3d6a90" font-size="16" font-family="sans-serif">✈</text>
-      <line x1="34" y1="78" x2="70" y2="78" stroke="#3d6a90" stroke-width="1" marker-end="url(#arr)"/>
-      <rect x="78" y="64" width="460" height="28" fill="#111822" stroke="#243650" stroke-width="1"/>
-      <line x1="78" y1="78" x2="538" y2="78" stroke="#1a2840" stroke-width="1" stroke-dasharray="10,7"/>
-      <text x="544" y="81" fill="#3d6a90" font-size="8" font-family="Share Tech Mono">C/L</text>
-      <line x1="78" y1="56" x2="78" y2="100" stroke="#12b880" stroke-width="2"/>
-      <text x="78" y="114" fill="#12b880" font-size="8" text-anchor="middle" font-family="Share Tech Mono">THR (row 0)</text>
-      <text x="34" y="50" fill="#3d6a90" font-size="7" font-family="Share Tech Mono">+rows (approach side)</text>
-      <text x="180" y="50" fill="#3d6a90" font-size="7" font-family="Share Tech Mono">−rows (into runway, past THR)</text>
-      <!-- LEFT GP ABOVE C/L -->
-      <line x1="236" y1="64" x2="236" y2="30" stroke="#1e9cd8" stroke-width="1.5"/>
-      <circle cx="236" cy="26" r="4" fill="none" stroke="#1e9cd8" stroke-width="1.5"/>
-      <line x1="227" y1="36" x2="245" y2="36" stroke="#28a040" stroke-width="2.5"/>
-      <line x1="227" y1="45" x2="245" y2="45" stroke="#1e9cd8" stroke-width="2.5"/>
-      <line x1="227" y1="54" x2="245" y2="54" stroke="#d48820" stroke-width="2.5"/>
-      <text x="356" y="18" fill="#1e9cd8" font-size="10" text-anchor="middle" font-family="Rajdhani" font-weight="700">LEFT GP (above C/L)</text>
-      <!-- RIGHT GP BELOW C/L -->
-      <line x1="236" y1="92" x2="236" y2="128" stroke="#d48820" stroke-width="1.5"/>
-      <circle cx="236" cy="132" r="4" fill="none" stroke="#d48820" stroke-width="1.5"/>
-      <line x1="227" y1="122" x2="245" y2="122" stroke="#28a040" stroke-width="2.5"/>
-      <line x1="227" y1="113" x2="245" y2="113" stroke="#1e9cd8" stroke-width="2.5"/>
-      <line x1="227" y1="104" x2="245" y2="104" stroke="#d48820" stroke-width="2.5"/>
-      <text x="356" y="148" fill="#d48820" font-size="10" text-anchor="middle" font-family="Rajdhani" font-weight="700">RIGHT GP (below C/L)</text>
-      <line x1="80" y1="144" x2="234" y2="144" stroke="#1e9cd8" stroke-width="1" marker-end="url(#arrb)" marker-start="url(#arrb2)"/>
-      <text x="157" y="154" fill="#1e9cd8" font-size="7" text-anchor="middle" font-family="Share Tech Mono">offset from THR → Excel row = −offset</text>
-      <line x1="540" y1="78" x2="584" y2="78" stroke="#3d6a90" stroke-width="1" marker-end="url(#arr)"/>
-    </svg>
-    <button class="tbtn btn-run" onclick="goto('upload')">Next: upload profile data →</button>
-  </div>
-
-  <!-- ── CUSTOM PROFILE ── -->
-  <div class="page" id="page-custom">
-    <div class="sec"><div class="sec-txt">Custom ground profile — define your own grid</div><div class="sec-line"></div></div>
-
-    <!-- Step 1: Grid dimensions -->
-    <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:12px 14px;margin-bottom:10px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);font-family:var(--sans);margin-bottom:10px">Step 1 — Define grid dimensions</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px">
-
-        <div>
-          <label style="font-size:10px;color:var(--tx2);display:block;margin-bottom:4px;font-family:var(--sans);font-weight:600">Number of rows (longitudinal)<br><span style="font-size:8px;color:var(--tx4);font-weight:400">Along runway axis</span></label>
-          <input class="inp" type="number" id="cust-nrows" value="54" min="2" max="200" step="1" style="width:100%">
-        </div>
-
-        <div>
-          <label style="font-size:10px;color:var(--tx2);display:block;margin-bottom:4px;font-family:var(--sans);font-weight:600">Row spacing (m)<br><span style="font-size:8px;color:var(--tx4);font-weight:400">Distance between rows</span></label>
-          <input class="inp" type="number" id="cust-rowstep" value="10" min="1" max="100" step="1" style="width:100%">
-        </div>
-
-        <div>
-          <label style="font-size:10px;color:var(--tx2);display:block;margin-bottom:4px;font-family:var(--sans);font-weight:600">First row distance (m from THR)<br><span style="font-size:8px;color:var(--tx4);font-weight:400">Negative = into runway. e.g. −380</span></label>
-          <input class="inp" type="number" id="cust-rowstart" value="-380" step="10" style="width:100%">
-        </div>
-
-        <div>
-          <label style="font-size:10px;color:var(--tx2);display:block;margin-bottom:4px;font-family:var(--sans);font-weight:600">Number of columns (lateral)<br><span style="font-size:8px;color:var(--tx4);font-weight:400">Perpendicular to runway</span></label>
-          <input class="inp" type="number" id="cust-ncols" value="16" min="1" max="50" step="1" style="width:100%">
-        </div>
-
-        <div>
-          <label style="font-size:10px;color:var(--tx2);display:block;margin-bottom:4px;font-family:var(--sans);font-weight:600">Column spacing (m)<br><span style="font-size:8px;color:var(--tx4);font-weight:400">Distance between columns</span></label>
-          <input class="inp" type="number" id="cust-colstep" value="10" min="1" max="100" step="1" style="width:100%">
-        </div>
-
-        <div>
-          <label style="font-size:10px;color:var(--tx2);display:block;margin-bottom:4px;font-family:var(--sans);font-weight:600">First column distance (m from C/L)<br><span style="font-size:8px;color:var(--tx4);font-weight:400">Closest lateral to C/L. e.g. 0</span></label>
-          <input class="inp" type="number" id="cust-colstart" value="0" min="0" max="300" step="5" style="width:100%">
-        </div>
-
-      </div>
-
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="tbtn btn-run" onclick="buildCustomGrid()" style="min-width:140px">⊞ Generate grid</button>
-        <div style="font-size:9px;color:var(--tx3);font-family:var(--sans)" id="cust-gridsize"></div>
-      </div>
-    </div>
-
-    <!-- Step 2: Editable grid -->
-    <div id="cust-grid-section" style="display:none">
-      <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:12px 14px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-          <div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);font-family:var(--sans)">Step 2 — Enter elevation data (m AMSL)</div>
-            <div style="font-size:9px;color:var(--tx4);margin-top:3px;font-family:var(--sans)">
-              Type values directly · Paste from Excel/spreadsheet (Ctrl+V / Cmd+V into any cell) ·
-              <span style="color:var(--amber)">★</span> = mast position · <span style="color:var(--teal)">THR</span> = threshold row
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="tbtn" style="border-color:var(--bdr3);color:var(--tx2);font-size:9px;padding:4px 10px" onclick="clearCustomGrid()">✕ Clear all</button>
-            <button class="tbtn" style="border-color:var(--bdr3);color:var(--tx2);font-size:9px;padding:4px 10px" onclick="fillCustomGrid()">⟳ Fill with THR elev.</button>
-            <button class="tbtn" style="border-color:var(--bdr3);color:var(--tx2);font-size:9px;padding:4px 10px" onclick="exportCustomCSV()">↓ Export CSV</button>
-          </div>
-        </div>
-
-        <!-- The editable table goes here -->
-        <div style="overflow:auto;max-height:min(55vh,380px);-webkit-overflow-scrolling:touch;border:1px solid var(--bdr);border-radius:2px" id="cust-tbl-wrap"></div>
-
-        <div style="display:flex;gap:12px;margin-top:6px;font-size:9px;color:var(--tx3);font-family:var(--sans);flex-wrap:wrap">
-          <span><span style="display:inline-block;width:10px;height:10px;background:rgba(30,156,216,.15);border:1px solid var(--blue2);vertical-align:middle;margin-right:3px"></span>Has value</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:var(--bg3);border:1px solid var(--bdr2);vertical-align:middle;margin-right:3px"></span>Empty (will use THR elev. as fallback)</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:rgba(212,136,32,.2);border:1px solid var(--amber2);vertical-align:middle;margin-right:3px"></span>Mast ★</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:rgba(18,184,128,.12);border:1px solid var(--teal2);vertical-align:middle;margin-right:3px"></span>THR row</span>
-        </div>
-      </div>
-
-      <!-- Step 3: Use data -->
-      <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:12px 14px;margin-bottom:10px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);font-family:var(--sans);margin-bottom:8px">Step 3 — Load into analyzer</div>
-        <div style="font-size:10px;color:var(--tx3);font-family:var(--sans);margin-bottom:10px;line-height:1.6">
-          Click the button below to load your entered data as the active ground profile.
-          The app will switch to the Profile Data page showing the grid preview,
-          then run analysis when you click <b style="color:var(--blue)">▶ Run analysis</b>.
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="tbtn btn-run" onclick="useCustomGrid()" style="min-width:180px">✓ Use this data for analysis</button>
-          <div style="font-size:9px;color:var(--tx3);font-family:var(--sans)" id="cust-status"></div>
-        </div>
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">Low-Frequency Spectrum — 30 Hz Reference Zone</div>
+        <div class="vd">Zoomed to <b>0–500 Hz</b>. The <b>30 Hz AM reference</b> should be the dominant feature; its level is proportional to m₀. <b>Harmonics at 60/90 Hz indicate modulator distortion</b> — a real fault visible on a spectrum analyser during maintenance.</div>
+        <div class="ch" style="height:clamp(145px,17vh,205px)"><canvas id="c-fft3" class="ch-c" role="img" aria-label="30Hz spectrum"></canvas></div>
       </div>
     </div>
   </div>
 
-  <!-- ── UPLOAD ── -->
-  <div class="page" id="page-upload">
-    <div class="sec"><div class="sec-txt">Ground elevation grid</div><div class="sec-line"></div></div>
-    <div id="dqBox" style="display:none;margin-bottom:8px"></div>
-    <div id="prevEmpty" style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:2rem;text-align:center;color:var(--tx4)">
-      <span style="font-size:28px;display:block;margin-bottom:8px">⊞</span>
-      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--sans)">Upload filled Lagoon Excel or load sample data</div>
-      <div style="font-size:9px;color:var(--tx4);margin-top:5px">Blank Lagoon proforma has no elevation data — fill cells first</div>
-    </div>
-    <div id="prevBlock" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);font-family:var(--sans)">Elevation grid (m AMSL) — mast <span style="color:var(--amber)">★</span>, threshold <span style="color:var(--teal)">THR</span></div>
-        <div style="font-size:9px;color:var(--tx3);font-family:var(--mono)" id="gridInfo"></div>
+  <!-- ══ NAV ANALYZER ══ -->
+  <div class="tabp" id="tab-nav">
+    <div class="vc">
+      <div class="vt" style="margin-bottom:3px">NAV Analyzer — FMI Colour Ring &amp; 360° Readout Table</div>
+      <div class="vd">
+        Each degree of azimuth coloured: <b class="ok">green</b> = FMI 15–17 (ICAO OK) · <b class="warn">amber</b> = 14–15 or 17–18 (warning band) · <b class="err">red</b> = outside 14–18 (out-of-tolerance, DVOR should be grounded).
+        Matches the display format of portable flight-inspection NAV analyzers.
       </div>
-      <div class="gtw" id="gridTbl"></div>
-      <div style="display:flex;gap:12px;margin-top:5px;font-size:9px;color:var(--tx3);font-family:var(--sans)">
-        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(30,156,216,.06);border:1px solid #1270a0;vertical-align:middle;margin-right:3px"></span>Data</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:var(--bg);border:1px solid var(--bdr2);vertical-align:middle;margin-right:3px"></span>Empty</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(212,136,32,.18);border:1px solid var(--amber2);vertical-align:middle;margin-right:3px"></span>Mast ★</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(18,184,128,.1);border:1px solid var(--teal2);vertical-align:middle;margin-right:3px"></span>THR row</span>
-      </div>
-    </div>
-    <div style="margin-top:12px"><button class="tbtn btn-run" onclick="runAnalysis()">▶ Run analysis</button></div>
-  </div>
-
-  <!-- ── RESULTS ── -->
-  <div class="page" id="page-results">
-    <div class="empty" id="res-empty"><span class="empty-ico">⌗</span><p>Run analysis to view results</p></div>
-    <div id="res-content" style="display:none">
-
-      <div class="sec"><div class="sec-txt" id="ant-title">Antenna element heights from mast base</div><div class="sec-line"></div></div>
-      <div class="r3" id="antCards"></div>
-
-      <div class="sec"><div class="sec-txt">NF monitor — position &amp; installation height</div><div class="sec-line"></div></div>
-      <div class="r3" id="nfCards"></div>
-
-      <div class="sec"><div class="sec-txt">RDH / TCH — reference datum height &amp; correction solutions</div><div class="sec-line"></div></div>
-      <div id="rdhCards" style="margin-bottom:12px"></div>
-
-      <div class="sec"><div class="sec-txt">OCS status &amp; site parameters</div><div class="sec-line"></div></div>
-      <div class="r3" id="siteCards"></div>
-
-      <div class="tab-row">
-        <div class="tab active" onclick="showTab('params')">Full parameter table</div>
-        <div class="tab" onclick="showTab('ocs')">OCS violations</div>
-      </div>
-      <div id="tab-params" class="tpane active">
-        <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:10px 14px;margin-bottom:10px">
-          <table class="ptbl" id="paramTable"></table>
-        </div>
-        <div id="alertList"></div>
-      </div>
-      <div id="tab-ocs" class="tpane">
-        <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:10px 14px"><div id="ocsList"></div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── TERRAIN ── -->
-  <div class="page" id="page-terrain">
-    <div class="empty" id="ter-empty"><span class="empty-ico">◟</span><p>Run analysis first</p></div>
-    <div id="ter-content" style="display:none">
-      <div class="cpanel">
-        <div class="cp-head">
-          <div class="cp-title">Terrain profile — C/L longitudinal cross-section</div>
-          <div class="cleg">
-            <span class="cli"><span class="cldot" style="background:#12b880"></span>Terrain</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #1e9cd8;background:transparent;width:16px"></span>Glide path</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #c03030;background:transparent;width:16px"></span>OCS</span>
-            <span class="cli"><span class="cldot" style="background:#d48820;border-radius:50%;width:8px;height:8px"></span>Reflection pt</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #7060d0;background:transparent;width:16px"></span>NF monitor</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #12b880;background:transparent;width:16px"></span>THR</span>
+      <div class="nav-panel">
+        <div class="ring-wrap">
+          <canvas id="c-ring" role="img" aria-label="FMI ring"></canvas>
+          <div class="band-key" style="justify-content:center">
+            <span><span class="dot" style="background:var(--fok)"></span>15–17 OK</span>
+            <span><span class="dot" style="background:var(--fwarn)"></span>14–18 warn</span>
+            <span><span class="dot" style="background:var(--ferr)"></span>OOT</span>
           </div>
         </div>
-        <div style="position:relative;height:280px"><canvas id="tChart"></canvas></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── CALIBRATION ── -->
-  <div class="page" id="page-calib">
-    <div class="empty" id="cal-empty"><span class="empty-ico">✈</span><p>Run analysis first</p></div>
-    <div id="cal-content" style="display:none">
-      <div class="cpanel">
-        <div class="cp-head">
-          <div class="cp-title">Synthetic flight calibration — DDM vs distance from mast</div>
-          <div class="cleg">
-            <span class="cli"><span class="cldot" style="background:#1e9cd8"></span>DDM profile</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #c03030;background:transparent;width:16px"></span>Zero ref</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #d48820;background:transparent;width:16px"></span>±0.0875 ICAO</span>
-            <span class="cli"><span class="cldot" style="border-top:2px dashed #7060d0;background:transparent;width:16px"></span>NF monitor pos.</span>
+        <div>
+          <div style="font-size:var(--fs-xs);color:var(--tx3);margin-bottom:4px">
+            FMI nominal = <b style="color:var(--tx)">16.000</b> &nbsp;|&nbsp;
+            ICAO tolerance <b style="color:var(--teal)">15.000 – 17.000</b> &nbsp;|&nbsp;
+            Deviation nominal = 480 Hz
           </div>
+          <div class="fmi-wrap"><table class="fmi-tbl">
+            <thead><tr><th>AZ(°)</th><th>FMI</th><th>Dev(Hz)</th><th>BrgErr(°)</th><th>ICAO</th></tr></thead>
+            <tbody id="fmi-body"></tbody>
+          </table></div>
         </div>
-        <div style="position:relative;height:250px"><canvas id="cChart"></canvas></div>
-        <div class="cnote">At the NF monitor distance the pattern inverts (360° phase error — DDM reverses sign). This is exactly where the NF monitor antenna is installed. Flight calibration measurements are only valid beyond this distance.</div>
       </div>
     </div>
   </div>
+</div><!-- right -->
+</div><!-- root -->
 
-  <!-- ── VALIDATION ── -->
-  <div class="page" id="page-validate">
-    <div class="sec"><div class="sec-txt">Reference validation table — all antenna types &amp; frequencies</div><div class="sec-line"></div></div>
-    <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:8px 12px;margin-bottom:10px;font-size:10px;color:var(--tx3);line-height:1.7;font-family:var(--sans)">
-      <b style="color:var(--tx2)">Reference table only — not site-specific results.</b>
-      Flat ground, no slope correction, mast at same elevation as threshold.<br>
-      Formula: <span style="color:var(--teal);font-family:var(--mono)">NF = h_lo × (h_lo + h_hi) / λ</span>.
-      RDH column shown for a <i>representative</i> 300 m offset purely for comparison — actual RDH depends on your site data.
-      Source: Qu 2018, OJAPR doi:10.4236/ojapr.2018.63006.
-    </div>
-    <div class="vtbl-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <table class="vtbl">
-      <thead><tr>
-        <th>Type</th><th>f (MHz)</th><th>θ (°)</th><th>λ (m)</th>
-        <th>h_lower (m)</th><th>h_mid (m)</th><th>h_upper (m)</th>
-        <th>NF dist (m)</th><th>NF height (m AGL)</th>
-        <th>RDH @300m offset (indicative)</th><th>(ft)</th>
-      </tr></thead>
-      <tbody id="vtbody"></tbody>
-    </table>
-    </div>
-  </div>
-
-</div><!-- /main -->
-</div><!-- /shell -->
-
-<div class="corner-deco">ILS GP ANALYZER v10.0 · AYUSH KAUSHIK · AM(CNS) RCDU</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 'use strict';
-let gpSide='left', gridData=null, tCI=null, cCI=null;
+/* ═══════════════════════════════════════════════════════════════════
+   DVOR SIMULATOR v6 — CORRECT DOPPLER ARRAY PHYSICS
+   ─────────────────────────────────────────────────────────────────
+   KEY PHYSICS CORRECTION vs previous versions:
+   A circular N-element array factor sum gives near-zero amplitude
+   and ~±180° phase at R=8λ/π — that was WRONG for DVOR.
 
-// ════════════════════════════════════════════════════════
-//  ANTENNA PHYSICS — all three systems
-// ════════════════════════════════════════════════════════
-function antParams(sys, freq, thetaDeg){
-  const lam=300/freq;
-  const theta=thetaDeg*Math.PI/180;
-  const sinT=Math.sin(theta), tanT=Math.tan(theta);
-  let h_lo, h_mid, h_hi, nfMonTheta;
+   CORRECT DVOR model (sequential dipole switching):
+   In a real DVOR, at rotation angle α, ONE dipole fires at position φ_n ≈ α.
+   A receiver at azimuth θ_rx sees path difference = r_n·cos(θ_rx − φ_n).
+   The Doppler-encoded bearing phase is:
+     φ_encoded(θ_rx) = k·R·cos(θ_rx − θ_rotation)
+   As α sweeps 0→2π, this creates FM deviation = k·R·f_rot = 16·30 = 480 Hz.
+   The ENCODED BEARING extracted by the receiver = θ_rx (for perfect array).
 
-  if(sys==='NR'){
-    // Null Reference: 2-element
-    h_lo = lam/(4*sinT);   // Lower: CSB+SBO
-    h_mid = null;
-    h_hi = 2*h_lo;         // Upper: SBO  = lambda/(2*sinT)
-    nfMonTheta = theta;    // monitor at glide angle
-  } else if(sys==='SR'){
-    // Sideband Reference: 2-element
-    h_lo = lam/(8*sinT);   // Lower: CSB+SBO anti-phase
-    h_mid = null;
-    h_hi = 3*h_lo;         // Upper: SBO  = 3*lambda/(8*sinT)
-    nfMonTheta = 2*theta;  // SR: monitor at 2×glide angle elevation
-  } else {
-    // M-Array / Capture Effect: 3-element
-    h_lo = lam/(4*sinT);   // Lower: SBO
-    h_mid = 2*h_lo;        // Middle: CSB
-    h_hi = 3*h_lo;         // Upper: SBO
-    nfMonTheta = theta;    // monitor at glide angle
+   BEARING ERROR for antenna position errors:
+     BrgErr(θ) = (1/N) Σ_n [ k·Δr_n·cos(θ−φ_n) + k·R·Δφ_n·sin(θ−φ_n) ] · (180/π)
+   This is the correct linear perturbation formula.
+   For ΔR=0.3m, N=48, R=6.7m: max error ≈ k·ΔR/N = 0.85° — within ±1°.
+
+   FMI per azimuth:
+     FMI(θ) = FMI_NOM · A · (1 − obstruction_loss(θ))
+   ═══════════════════════════════════════════════════════════════════ */
+
+const D2R=Math.PI/180, R2D=180/Math.PI, C=299792458, TWO_PI=2*Math.PI;
+
+/* ICAO constants */
+const FMI_NOM=16.000, DEV_NOM=480, F_ROT=30, F_SUB=9960;
+const FMI_LO=15.0, FMI_HI=17.0, FMI_WLO=14.0, FMI_WHI=18.0;
+const M0_NOM=0.302;
+
+function wrap180(x){while(x>180)x-=360;while(x<-180)x+=360;return x;}
+function pad3(n){return String(Math.round(n)).padStart(3,'0');}
+
+/* ── ICAO radius formula ── */
+function icaoRadius(freqMHz){
+  const lam=C/(freqMHz*1e6);
+  return 8*lam/Math.PI;   // k·R = 16 exactly → FMI=16
+}
+
+/* ── ITU-R P.526 knife-edge (Rappaport approx) ── */
+function keDB(v){
+  if(v<=-1)return 0;
+  if(v<=0)return 20*Math.log10(0.5-0.62*v);
+  if(v<=1)return 20*Math.log10(0.5*Math.exp(-0.95*v));
+  if(v<=2.4)return 20*Math.log10(0.4-Math.sqrt(Math.max(0,0.1184-Math.pow(0.38-0.1*v,2))));
+  return 20*Math.log10(0.225/v);
+}
+
+/* ── Obstruction loss at azimuth ai (degrees) ── */
+function obsLoss(ai, p, lam){
+  if(!p.obsEn)return{amp:1, phaseErr:0};
+  const dAzDeg=wrap180(ai-p.obsAzD);
+  const halfW=Math.atan2(p.obsW/2,p.obsD)*R2D;
+  if(Math.abs(dAzDeg)>=halfW*2.5)return{amp:1, phaseErr:0};
+  // dipole AGL = counterpoise AGL + height above counterpoise
+  const dipoleAGL=p.cph+p.txH;
+  const hEff=Math.max(0,p.obsH-dipoleAGL);
+  const vv=hEff*Math.sqrt((2/lam)*(1/p.obsD+1/8000));
+  const lossDB=keDB(vv);
+  const lf=Math.pow(10,-Math.abs(lossDB)/20);
+  const cen=Math.max(0,1-Math.abs(dAzDeg)/(halfW*2));
+  return{amp:1-cen*(1-lf), phaseErr:cen*0.05*vv};
+}
+
+/* ════════════════════════════════════════════════════════
+   CORE COMPUTATION — correct Doppler perturbation model
+   ════════════════════════════════════════════════════════
+   For each azimuth θ (0–359°):
+
+   1. FMI(θ) = FMI_NOM · A · obsAmp(θ)
+
+   2. Bearing error (phase error) using perturbation formula:
+      phErr(θ) = Σ_n [ k·Δr_n·cos(θ−φ_n) + k·R·Δφ_n·sin(θ−φ_n) ] / N
+      + obsPhaseErr(θ)
+
+   3. For amplitude/polar pattern:
+      amp(θ) = A · obsAmp(θ)  (with small modulation from errors)
+*/
+function computeAll(p){
+  const lam=C/(p.freq*1e6), k=TWO_PI/lam;
+  const R=p.R;
+  const N=p.N;
+
+  // Build per-antenna errors
+  const antErr=[];
+  for(let n=0;n<N;n++){
+    const e=p.antEn&&p.antErr[n]?p.antErr[n]:{dr:0,dphi:0};
+    antErr.push({dr:parseFloat(e.dr)||0, dphi:(parseFloat(e.dphi)||0)*D2R});
   }
+  const phi_n=Array.from({length:N},(_,n)=>n*TWO_PI/N);
 
-  // NF distance: h_lower × (h_lower + h_upper) / λ
-  // This is the 360° phase-error point (pattern inversion)
-  // Confirmed: NR≈62m, SR≈21m, MA≈82m at 333MHz/3° [Qu 2018]
-  const nf_dist = h_lo*(h_lo+h_hi)/lam;
+  const radPat=[], fmiArr=[], devHz=[], phErrArr=[], brgErrArr=[];
 
-  // NF monitor antenna height above ground at monitor position
-  const nf_height = nf_dist*Math.tan(nfMonTheta);
+  for(let ai=0;ai<360;ai++){
+    const theta=ai*D2R;
 
-  return {lam, theta, tanT, sinT, h_lo, h_mid, h_hi, nf_dist, nf_height, nfMonTheta};
-}
+    // Obstruction
+    const {amp:oAmp, phaseErr:oPh}=obsLoss(ai,p,lam);
 
-function computeRDH(mastElev, h_lo, antOff, theta, thrGE){
-  return (mastElev + h_lo - thrGE) + antOff*Math.tan(theta);
-}
-function reqOff(target, mastElev, h_lo, theta, thrGE){
-  return (target - (mastElev + h_lo - thrGE))/Math.tan(theta);
-}
+    // FMI at this azimuth — proportional to sideband amplitude × obstruction
+    const fmi=FMI_NOM*p.sb*oAmp;
 
-// ════════════════════════════════════════════════════════
-//  SIDEBAR TOGGLE (mobile/tablet)
-// ════════════════════════════════════════════════════════
-function toggleSidebar(){
-  const sb=document.getElementById('sidebar');
-  const ov=document.getElementById('sbOverlay');
-  const isOpen=sb.classList.contains('open');
-  sb.classList.toggle('open',!isOpen);
-  ov.classList.toggle('open',!isOpen);
-  document.body.style.overflow=!isOpen?'hidden':'';
-}
-function closeSidebarOnMobile(){
-  if(window.innerWidth<=900){
-    const sb=document.getElementById('sidebar');
-    const ov=document.getElementById('sbOverlay');
-    sb.classList.remove('open');
-    ov.classList.remove('open');
-    document.body.style.overflow='';
-  }
-}
-
-// ════════════════════════════════════════════════════════
-//  NAVIGATION
-// ════════════════════════════════════════════════════════
-function goto(n){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-  document.getElementById('page-'+n).classList.add('active');
-  document.getElementById('nav-'+n).classList.add('active');
-  if(n==='terrain'&&tCI) setTimeout(()=>tCI.resize(),60);
-  if(n==='calib'&&cCI) setTimeout(()=>cCI.resize(),60);
-  if(n==='validate') buildValidation();
-  closeSidebarOnMobile();
-}
-
-function setSide(s){
-  gpSide=s;
-  ['left','right'].forEach(x=>document.getElementById('btn-'+x).classList.remove('active'));
-  document.getElementById('btn-'+s).classList.add('active');
-  document.getElementById('sideChip').textContent=(s==='left'?'Left':'Right')+' GP';
-  document.getElementById('sideChip').style.borderColor=s==='left'?'var(--blue)':'var(--amber)';
-  document.getElementById('sideChip').style.color=s==='left'?'var(--blue)':'var(--amber)';
-}
-
-// ════════════════════════════════════════════════════════
-//  HELPERS
-// ════════════════════════════════════════════════════════
-function getThr(){ return parseFloat(document.getElementById('thrElev').value)||0; }
-
-function getElev(longDist, lat=0){
-  const thrE=getThr();
-  if(!gridData) return thrE;
-  const lds=gridData.longDists;
-  const cl=gridData.latDists.reduce((a,b)=>Math.abs(b-lat)<Math.abs(a-lat)?b:a);
-  for(let i=0;i<lds.length-1;i++){
-    if(longDist>=lds[i]&&longDist<=lds[i+1]){
-      const t=(longDist-lds[i])/(lds[i+1]-lds[i]);
-      const e1=gridData.rows[lds[i]]?.[cl], e2=gridData.rows[lds[i+1]]?.[cl];
-      if(e1!=null&&e2!=null) return e1+t*(e2-e1);
-      if(e1!=null) return e1; if(e2!=null) return e2;
-      return thrE;
+    // Bearing error from antenna position errors (correct perturbation formula)
+    let phErr=0;
+    for(let n=0;n<N;n++){
+      const {dr,dphi}=antErr[n];
+      // Radial error contribution
+      phErr += k*dr*Math.cos(theta-phi_n[n]);
+      // Angular error contribution
+      phErr += k*R*dphi*Math.sin(theta-phi_n[n]);
     }
+    phErr /= N;
+    // Add obstruction phase perturbation
+    phErr += oPh;
+
+    // Amplitude pattern: nominal = 1, modulated by errors (small, for polar display)
+    // Use simplified model: amp varies slightly due to constructive/destructive interference
+    let ampRe=0, ampIm=0;
+    for(let n=0;n<N;n++){
+      const {dr}=antErr[n];
+      const dp=k*(R+dr)*Math.cos(theta-phi_n[n]);
+      ampRe+=Math.cos(dp); ampIm+=Math.sin(dp);
+    }
+    const amp=p.sb*oAmp*Math.sqrt(ampRe*ampRe+ampIm*ampIm)/N;
+
+    radPat.push(+amp.toFixed(5));
+    fmiArr.push(+fmi.toFixed(4));
+    devHz.push(+(fmi*F_ROT).toFixed(2));
+    phErrArr.push(+(phErr*R2D).toFixed(4));
+    brgErrArr.push(+(wrap180(phErr*R2D)).toFixed(4));
   }
-  const last=lds[lds.length-1];
-  if(longDist<lds[0]){ const v=gridData.rows[lds[0]]?.[cl]; return v!=null?v:thrE; }
-  const v=gridData.rows[last]?.[cl]; return v!=null?v:thrE;
+
+  const avg=fmiArr.reduce((a,b)=>a+b,0)/360;
+  const mn=Math.min(...fmiArr), mx=Math.max(...fmiArr);
+  const refFMI=FMI_NOM*p.rm/M0_NOM;
+  const maxErr=Math.max(...brgErrArr.map(Math.abs));
+  const avgDev=DEV_NOM*(avg/FMI_NOM);
+
+  return{radPat,fmiArr,devHz,phErrArr,brgErrArr,lam,avg,mn,mx,
+         refFMI,maxErr,avgDev,fmiRatio:avg/refFMI,antErr,phi_n,k,R};
 }
 
-function slopeAt(ld){ return (getElev(ld+60,0)-getElev(ld-60,0))/120; }
+/* ════ RF Time-domain ════ */
+function buildTimeDomain(p,res,rxAz){
+  const Fs=F_SUB*40, Tw=p.twin/1000;
+  const Ns=Math.min(Math.round(Fs*Tw),4096);
+  const{lam,k,R,antErr,phi_n}=res;
+  const N=p.N;
 
-// Sideways slope (SSL) at mast position — elevation change per metre lateral
-function sslAt(longDist, lat){
-  const step=10;
-  const e1=getElev(longDist, Math.max(0,lat-step));
-  const e2=getElev(longDist, Math.min(150,lat+step));
-  const span=Math.min(150,lat+step)-Math.max(0,lat-step);
-  return span>0 ? (e2-e1)/span : 0;
+  // Path-length to receiver at rxAz considering errors
+  // Phase encoded in FM = sum of contributions from each dipole as it fires
+  // Simplified: use the mean path difference at rxAz
+  let pathSum=0;
+  for(let n=0;n<N;n++){
+    const {dr}=antErr[n];
+    pathSum+=k*(R+dr)*Math.cos(rxAz*D2R-phi_n[n]);
+  }
+  const encPhase=(pathSum/N);   // radians — the azimuth-encoded phase
+
+  // Obstruction effect at rxAz
+  const {amp:oAmp}=obsLoss(rxAz,p,lam);
+  const Eamp=p.sb*oAmp;
+  const mFM=p.sb*DEV_NOM/F_SUB;  // FM modulation index of subcarrier
+
+  const t=[],sig=[],sub9960=[],env30=[];
+  for(let i=0;i<Ns;i++){
+    const ti=i/Fs;
+    const ref30=p.rm*Math.cos(TWO_PI*F_ROT*ti);
+    // FM subcarrier: instantaneous freq = F_SUB + Δf·cos(2π·30·t − encPhase)
+    // Integral of inst freq gives phase of subcarrier:
+    const phi_sub=TWO_PI*F_SUB*ti + mFM*Math.sin(TWO_PI*F_ROT*ti - encPhase);
+    const varSub=Eamp*Math.cos(phi_sub);
+    t.push(+(ti*1000).toFixed(4));
+    sig.push(+(1+ref30+varSub).toFixed(5));
+    sub9960.push(+varSub.toFixed(5));
+    env30.push(+ref30.toFixed(5));
+  }
+  return{t,sig,sub9960,env30,Ns,Fs,encPhase,Eamp,mFM,rxAz};
 }
 
-// ════════════════════════════════════════════════════════
-//  CUSTOM PROFILE — build editable grid
-// ════════════════════════════════════════════════════════
-let custMeta = null; // stores grid definition while editing
+/* ════ FFT (Cooley-Tukey radix-2) ════ */
+function fftR2(re,im){
+  const N=re.length; if(N<=1)return;
+  const ree=new Float64Array(N/2),ime=new Float64Array(N/2);
+  const reo=new Float64Array(N/2),imo=new Float64Array(N/2);
+  for(let i=0;i<N/2;i++){ree[i]=re[2*i];ime[i]=im[2*i];reo[i]=re[2*i+1];imo[i]=im[2*i+1];}
+  fftR2(ree,ime); fftR2(reo,imo);
+  for(let k=0;k<N/2;k++){
+    const a=-TWO_PI*k/N,wr=Math.cos(a),wi=Math.sin(a);
+    const tr=wr*reo[k]-wi*imo[k],ti=wr*imo[k]+wi*reo[k];
+    re[k]=ree[k]+tr; im[k]=ime[k]+ti;
+    re[k+N/2]=ree[k]-tr; im[k+N/2]=ime[k]-ti;
+  }
+}
+function computeFFT(sig,Fs){
+  let N=1; while(N<sig.length)N*=2;
+  const re=new Float64Array(N),im=new Float64Array(N);
+  for(let i=0;i<sig.length;i++){
+    const w=0.5*(1-Math.cos(TWO_PI*i/(sig.length-1)));
+    re[i]=sig[i]*w;
+  }
+  fftR2(re,im);
+  const half=N/2,freqs=[],mags=[];
+  for(let k=0;k<half;k++){
+    freqs.push(+(k*Fs/N).toFixed(1));
+    mags.push(+(20*Math.log10(Math.sqrt(re[k]*re[k]+im[k]*im[k])/half+1e-12)).toFixed(2));
+  }
+  return{freqs,mags};
+}
 
-function buildCustomGrid(){
-  const nRows    = Math.max(2, Math.min(200, parseInt(document.getElementById('cust-nrows').value)||54));
-  const rowStep  = Math.max(1, parseFloat(document.getElementById('cust-rowstep').value)||10);
-  const rowStart = parseFloat(document.getElementById('cust-rowstart').value)||-380;
-  const nCols    = Math.max(1, Math.min(50,  parseInt(document.getElementById('cust-ncols').value)||16));
-  const colStep  = Math.max(1, parseFloat(document.getElementById('cust-colstep').value)||10);
-  const colStart = Math.max(0, parseFloat(document.getElementById('cust-colstart').value)||0);
+/* ════ CHART INSTANCES ════ */
+let CH={};
+function gOpts(y0,y1,yL,xL='Azimuth (°)'){
+  return{responsive:true,maintainAspectRatio:false,animation:{duration:50},
+    plugins:{legend:{display:true,labels:{color:'#364e66',font:{size:8},boxWidth:7,padding:6}},
+      tooltip:{backgroundColor:'#0d1520',borderColor:'#243858',borderWidth:1,
+               titleColor:'#ccddf0',bodyColor:'#6888aa',titleFont:{size:9},bodyFont:{size:8}}},
+    scales:{
+      x:{ticks:{color:'#364e66',maxRotation:0,autoSkip:true,maxTicksLimit:13,font:{size:8}},
+         grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'},
+         title:{display:!!xL,text:xL,color:'#364e66',font:{size:8}}},
+      y:{min:y0,max:y1,ticks:{color:'#364e66',font:{size:8}},
+         grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'},
+         title:{display:!!yL,text:yL,color:'#364e66',font:{size:8}}}}};
+}
+function degL(){return Array.from({length:360},(_,i)=>i%30===0?i+'°':'');}
 
-  // Build arrays of row distances (long) and column distances (lateral)
-  const longDists = [];
-  for(let i=0;i<nRows;i++) longDists.push(Math.round((rowStart + i*rowStep)*100)/100);
+function initCharts(){
+  const L=degL();
 
-  const latDists = [];
-  for(let i=0;i<nCols;i++) latDists.push(Math.round((colStart + i*colStep)*100)/100);
+  CH.strip=new Chart(document.getElementById('c-strip'),{type:'line',data:{labels:L,datasets:[
+    {label:'FMI variable',data:[],borderColor:'#2474c8',backgroundColor:'rgba(36,116,200,0.06)',borderWidth:1.6,pointRadius:0,tension:0.2,fill:true},
+    {label:'FMI reference (m₀)',data:[],borderColor:'rgba(192,120,8,0.7)',borderWidth:1,borderDash:[5,3],pointRadius:0},
+    {label:'ICAO upper 17.0',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+    {label:'ICAO lower 15.0',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+  ]},options:gOpts(12,20,'FMI (absolute)')});
 
-  custMeta = {longDists, latDists, nRows, nCols, rowStep, rowStart, colStep, colStart};
+  CH.phase=new Chart(document.getElementById('c-phase'),{type:'line',data:{labels:L,datasets:[
+    {label:'Phase error = bearing error (°)',data:[],borderColor:'#16966a',backgroundColor:'rgba(22,150,106,0.06)',borderWidth:1.5,pointRadius:0,tension:0.2,fill:true},
+    {label:'±1° ICAO site limit',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+  ]},options:gOpts(-2,2,'Phase / bearing error (°)')});
 
-  const antOff = parseInt(document.getElementById('antOff').value)||300;
-  const antLat = parseInt(document.getElementById('antLat').value)||120;
-  const mastRow = -antOff;
+  CH.err=new Chart(document.getElementById('c-err'),{type:'line',data:{labels:L,datasets:[
+    {label:'Bearing error (°)',data:[],borderColor:'#b83030',backgroundColor:'rgba(184,48,48,0.06)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.2},
+    {label:'±0.5° preferred',data:[],borderColor:'rgba(192,120,8,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(192,120,8,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'±1.0° ICAO site limit',data:[],borderColor:'rgba(22,150,106,0.55)',borderWidth:0.9,borderDash:[2,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(22,150,106,0.55)',borderWidth:0.9,borderDash:[2,4],pointRadius:0},
+    {label:'±2.0° CAT I limit',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+  ]},options:gOpts(-2.5,2.5,'Bearing error (°)')});
 
-  // Find closest row and column to mast position
-  const closestRow = longDists.reduce((a,b)=>Math.abs(b-mastRow)<Math.abs(a-mastRow)?b:a);
-  const closestCol = latDists.reduce((a,b)=>Math.abs(b-antLat)<Math.abs(a-antLat)?b:a);
+  CH.scope=new Chart(document.getElementById('c-scope'),{type:'line',data:{labels:[],datasets:[
+    {label:'Composite s(t)',data:[],borderColor:'#2474c8',borderWidth:1.2,pointRadius:0,tension:0},
+    {label:'9960 Hz FM sub',data:[],borderColor:'#16966a',borderWidth:1,pointRadius:0,tension:0},
+    {label:'30 Hz AM ref',data:[],borderColor:'#c07808',borderWidth:1,pointRadius:0,tension:0},
+  ]},options:gOpts(null,null,'Amplitude','Time (ms)')});
 
-  document.getElementById('cust-gridsize').textContent =
-    `${nRows} rows × ${nCols} cols = ${nRows*nCols} cells  |  Long: ${rowStart}m to ${rowStart+(nRows-1)*rowStep}m  |  Lat: ${colStart}m to ${colStart+(nCols-1)*colStep}m from C/L`;
+  CH.fm=new Chart(document.getElementById('c-fm'),{type:'line',data:{labels:[],datasets:[
+    {label:'FM subcarrier',data:[],borderColor:'#16966a',borderWidth:1.2,pointRadius:0,tension:0},
+  ]},options:gOpts(null,null,'Amplitude','Time (ms)')});
 
-  // Build table HTML
-  let h = `<table class="cgt" id="custTable">`;
-  h += `<thead><tr><th class="fix-col">Dist from THR (m)</th>`;
-  latDists.forEach(lat => { h += `<th>${lat}m</th>`; });
-  h += `</tr></thead><tbody>`;
+  CH.phdiff=new Chart(document.getElementById('c-phdiff'),{type:'line',data:{labels:[],datasets:[
+    {label:'Encoded bearing phase (°)',data:[],borderColor:'#c07808',borderWidth:1.5,pointRadius:0,tension:0.2},
+  ]},options:gOpts(null,null,'Phase diff (°)','Time (ms)')});
 
-  longDists.forEach((ld, ri) => {
-    const isThr = ld===0;
-    const isAnt = ld===closestRow;
-    const trClass = isAnt ? 'ant-r' : isThr ? 'thr-r' : '';
-    h += `<tr>`;
-    h += `<td class="row-hdr ${trClass}">${ld}${isAnt?' ★':isThr?' [THR]':''}</td>`;
-    latDists.forEach((lat, ci) => {
-      const isAntCell = isAnt && lat===closestCol;
-      const isThrCell = isThr;
-      const tdCls = isAntCell ? 'ant-c' : isThrCell ? 'thr-c' : '';
-      const cellId = `c_${ri}_${ci}`;
-      h += `<td class="${tdCls}"><input type="number" id="${cellId}" step="0.001" placeholder="—"
-        oninput="onCustCell(this)"
-        onpaste="onCustPaste(event,${ri},${ci})"
-        onkeydown="onCustKey(event,${ri},${ci})"
-        autocomplete="off"></td>`;
-    });
-    h += `</tr>`;
+  CH.doppler=new Chart(document.getElementById('c-doppler'),{type:'line',data:{labels:L,datasets:[
+    {label:'Bearing error per azimuth (°)',data:[],borderColor:'#2474c8',backgroundColor:'rgba(36,116,200,0.07)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.2},
+    {label:'±1° ICAO',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+  ]},options:gOpts(-2,2,'Bearing error (°)')});
+
+  CH.fft=new Chart(document.getElementById('c-fft'),{type:'line',data:{labels:[],datasets:[
+    {label:'Spectrum (dBFS)',data:[],borderColor:'#16966a',backgroundColor:'rgba(22,150,106,0.07)',borderWidth:1.2,pointRadius:0,fill:true,tension:0},
+  ]},options:gOpts(null,null,'Level (dBFS)','Frequency (Hz)')});
+
+  CH.fft2=new Chart(document.getElementById('c-fft2'),{type:'line',data:{labels:[],datasets:[
+    {label:'9960 Hz sidebands (dBFS)',data:[],borderColor:'#c07808',backgroundColor:'rgba(192,120,8,0.07)',borderWidth:1.2,pointRadius:0,fill:true,tension:0},
+  ]},options:gOpts(null,null,'Level (dBFS)','Frequency (Hz)')});
+
+  CH.fft3=new Chart(document.getElementById('c-fft3'),{type:'line',data:{labels:[],datasets:[
+    {label:'30 Hz AM + harmonics (dBFS)',data:[],borderColor:'#b83030',backgroundColor:'rgba(184,48,48,0.07)',borderWidth:1.2,pointRadius:0,fill:true,tension:0},
+  ]},options:gOpts(null,null,'Level (dBFS)','Frequency (Hz)')});
+}
+
+/* ── Polar ── */
+let animAngle=0, animRunning=false, animRAF=null;
+function drawPolar(radPat,showRef,normalize,hlAngle){
+  const ctx=document.getElementById('c-polar').getContext('2d');
+  if(CH.polar)CH.polar.destroy();
+  const mx=normalize?(Math.max(...radPat)||1):1;
+  function xy(vals){const p=vals.map((v,i)=>({x:+(v*Math.sin(i*D2R)).toFixed(4),y:+(v*Math.cos(i*D2R)).toFixed(4)}));p.push(p[0]);return p;}
+  const ds=[{label:'Array pattern',data:xy(radPat.map(v=>v/mx)),borderColor:'#2474c8',backgroundColor:'rgba(36,116,200,0.10)',borderWidth:1.5,pointRadius:0,fill:true,tension:0}];
+  if(showRef) ds.push({label:'Ideal (circular)',data:xy(Array(360).fill(1)),borderColor:'rgba(192,120,8,0.35)',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false,tension:0});
+  if(hlAngle!==undefined){
+    const r=1.15;
+    ds.push({label:'Rotation θ',data:[{x:0,y:0},{x:+(r*Math.sin(hlAngle*D2R)).toFixed(4),y:+(r*Math.cos(hlAngle*D2R)).toFixed(4)}],
+      borderColor:'#b83030',borderWidth:2,pointRadius:[0,5],pointBackgroundColor:['transparent','#b83030'],
+      pointBorderColor:['transparent','#b83030'],fill:false,tension:0});
+  }
+  CH.polar=new Chart(ctx,{type:'scatter',data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:{duration:0},
+    plugins:{legend:{display:true,labels:{color:'#364e66',font:{size:8},boxWidth:7}}},
+    scales:{x:{min:-1.3,max:1.3,ticks:{display:false},grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'}},
+            y:{min:-1.3,max:1.3,ticks:{display:false},grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'}}}}});
+}
+
+function toggleAnim(){
+  animRunning=!animRunning;
+  document.getElementById('btn-anim').textContent=animRunning?'⏸ PAUSE':'▶ ANIMATE';
+  document.getElementById('btn-anim').className=animRunning?'on':'';
+  document.getElementById('b-anim').textContent=animRunning?'▶ ANIMATING':'⏸ PAUSED';
+  if(animRunning)runAnim();
+}
+function runAnim(){
+  if(!animRunning)return;
+  const spd=parseFloat(document.getElementById('anim-spd').value);
+  animAngle=(animAngle+spd*0.5)%360;
+  document.getElementById('anim-angle').textContent='θ = '+pad3(Math.round(animAngle))+'°';
+  const p=getP(); const res=computeAll(p);
+  drawPolar(res.radPat,p.showRef,p.normalize,animAngle);
+  const rxNow=Math.round(animAngle);
+  document.getElementById('rxaz').value=rxNow;
+  document.getElementById('vv-rxaz').textContent=pad3(rxNow)+'°';
+  updateRFCharts(p,res,rxNow);
+  animRAF=requestAnimationFrame(runAnim);
+}
+
+/* ── Static chart updates ── */
+function updateStaticCharts(res,p){
+  const ref=Array(360).fill(+res.refFMI.toFixed(4));
+  CH.strip.data.datasets[0].data=res.fmiArr;
+  CH.strip.data.datasets[1].data=p.showRef?ref:Array(360).fill(null);
+  CH.strip.data.datasets[2].data=Array(360).fill(FMI_HI);
+  CH.strip.data.datasets[3].data=Array(360).fill(FMI_LO);
+  CH.strip.update();
+
+  // Phase chart: phase error (= bearing error in degrees) — flat at 0 for perfect array
+  const lim1=Array(360).fill(1.0), limM1=Array(360).fill(-1.0);
+  CH.phase.data.datasets[0].data=res.phErrArr;
+  CH.phase.data.datasets[1].data=p.showRef?lim1:Array(360).fill(null);
+  CH.phase.data.datasets[2].data=p.showRef?limM1:Array(360).fill(null);
+  const ym_ph=Math.max(1.5,+(Math.max(...res.phErrArr.map(Math.abs))*1.5).toFixed(2));
+  CH.phase.options.scales.y.min=-ym_ph; CH.phase.options.scales.y.max=ym_ph;
+  CH.phase.update();
+
+  const ym=Math.max(1.5,+(Math.max(...res.brgErrArr.map(Math.abs))*1.5).toFixed(2));
+  CH.err.options.scales.y.min=-ym; CH.err.options.scales.y.max=ym;
+  CH.err.data.datasets[0].data=res.brgErrArr;
+  CH.err.data.datasets[1].data=Array(360).fill(0.5);
+  CH.err.data.datasets[2].data=Array(360).fill(-0.5);
+  CH.err.data.datasets[3].data=Array(360).fill(1.0);
+  CH.err.data.datasets[4].data=Array(360).fill(-1.0);
+  CH.err.data.datasets[5].data=Array(360).fill(2.0);
+  CH.err.data.datasets[6].data=Array(360).fill(-2.0);
+  CH.err.update();
+
+  // Doppler sweep = same as bearing error array
+  const ym2=Math.max(1,+(Math.max(...res.brgErrArr.map(Math.abs))*1.6).toFixed(2));
+  CH.doppler.options.scales.y.min=-ym2; CH.doppler.options.scales.y.max=ym2;
+  CH.doppler.data.datasets[0].data=res.brgErrArr;
+  CH.doppler.data.datasets[1].data=Array(360).fill(1.0);
+  CH.doppler.data.datasets[2].data=Array(360).fill(-1.0);
+  CH.doppler.update();
+}
+
+/* ── RF charts ── */
+function updateRFCharts(p,res,rxAz){
+  const td=buildTimeDomain(p,res,rxAz);
+  const fmiRx=(FMI_NOM*td.Eamp).toFixed(3);
+  document.getElementById('scope-title').textContent=
+    `@ Rx ${pad3(rxAz)}°  |  E=${td.Eamp.toFixed(4)}  |  FMI=${fmiRx}  |  encoded bearing=${(td.encPhase*R2D).toFixed(2)}°`;
+
+  const step=Math.max(1,Math.floor(td.Ns/800));
+  const tL=[],sigD=[],subD=[],envD=[];
+  for(let i=0;i<td.Ns;i+=step){tL.push(td.t[i].toFixed(2));sigD.push(td.sig[i]);subD.push(td.sub9960[i]);envD.push(td.env30[i]);}
+  CH.scope.data.labels=tL; CH.scope.data.datasets[0].data=sigD;
+  CH.scope.data.datasets[1].data=subD; CH.scope.data.datasets[2].data=envD; CH.scope.update();
+  CH.fm.data.labels=tL; CH.fm.data.datasets[0].data=subD; CH.fm.update();
+
+  // VAR-REF phase diff — should be constant = rxAz for perfect array
+  const phD=[];
+  for(let i=0;i<td.Ns;i+=step){
+    const t_s=td.t[i]/1000;
+    const refPhase=TWO_PI*F_ROT*t_s;
+    // Instantaneous phase of FM subcarrier
+    const subPhase=TWO_PI*F_SUB*(td.t[i]/1000)+td.mFM*Math.sin(TWO_PI*F_ROT*(td.t[i]/1000)-td.encPhase);
+    // Extract 30Hz component from FM: this is td.encPhase in steady state
+    phD.push(+(td.encPhase*R2D).toFixed(2));
+  }
+  CH.phdiff.data.labels=tL; CH.phdiff.data.datasets[0].data=phD; CH.phdiff.update();
+
+  // FFT
+  const spec=computeFFT(td.sig,td.Fs);
+  const maxF=20000,fi=spec.freqs.findIndex(f=>f>maxF)||spec.freqs.length;
+  CH.fft.data.labels=spec.freqs.slice(0,fi).map(f=>f<1000?+f:+(f/1000).toFixed(1)+'k');
+  CH.fft.data.datasets[0].data=spec.mags.slice(0,fi); CH.fft.update();
+
+  const f0=F_SUB,bw=2000;
+  const i1=Math.max(0,spec.freqs.findIndex(f=>f>=f0-bw));
+  const i2=spec.freqs.findIndex(f=>f>f0+bw)||fi;
+  CH.fft2.data.labels=spec.freqs.slice(i1,i2).map(f=>f.toFixed(0));
+  CH.fft2.data.datasets[0].data=spec.mags.slice(i1,i2); CH.fft2.update();
+
+  const il=spec.freqs.findIndex(f=>f>500)||fi;
+  CH.fft3.data.labels=spec.freqs.slice(1,il).map(f=>f.toFixed(0));
+  CH.fft3.data.datasets[0].data=spec.mags.slice(1,il); CH.fft3.update();
+}
+
+/* ── FMI ring ── */
+function drawRing(fmiArr){
+  const cvs=document.getElementById('c-ring');
+  const sz=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ring').trim())||200;
+  cvs.width=sz*devicePixelRatio; cvs.height=sz*devicePixelRatio;
+  cvs.style.width=sz+'px'; cvs.style.height=sz+'px';
+  const ctx=cvs.getContext('2d'); ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,sz,sz);
+  const cx=sz/2,cy=sz/2,OR=sz*.44,IR=sz*.27;
+  for(let i=0;i<360;i++){
+    const f=fmiArr[i];
+    const col=f>=FMI_LO&&f<=FMI_HI?'#16966a':f>=FMI_WLO&&f<=FMI_WHI?'#c07808':'#b83030';
+    const sa=(i-90.5)*D2R,ea=(i-89.5)*D2R;
+    ctx.beginPath();ctx.arc(cx,cy,OR,sa,ea);ctx.arc(cx,cy,IR,ea,sa,true);ctx.closePath();
+    ctx.fillStyle=col;ctx.fill();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,IR-1,0,TWO_PI);ctx.fillStyle='#07090e';ctx.fill();
+  const avg=fmiArr.reduce((a,b)=>a+b,0)/360;
+  ctx.textAlign='center';
+  ctx.fillStyle='#ccddf0';ctx.font=`bold ${Math.round(sz*.08)}px Courier New`;
+  ctx.fillText(avg.toFixed(3),cx,cy+2);
+  ctx.fillStyle='#364e66';ctx.font=`${Math.round(sz*.052)}px Courier New`;
+  ctx.fillText('FMI avg',cx,cy+sz*.08);
+  ctx.fillText('nom 16.000',cx,cy+sz*.14);
+  for(let a=0;a<360;a+=30){
+    const ra=(a-90)*D2R;
+    ctx.beginPath();ctx.moveTo(cx+(OR+1)*Math.cos(ra),cy+(OR+1)*Math.sin(ra));
+    ctx.lineTo(cx+(OR+6)*Math.cos(ra),cy+(OR+6)*Math.sin(ra));
+    ctx.strokeStyle='#364e66';ctx.lineWidth=0.8;ctx.stroke();
+    ctx.fillStyle='#364e66';ctx.font=`${Math.round(sz*.042)}px Courier New`;ctx.textAlign='center';
+    ctx.fillText(pad3(a),cx+(OR+12)*Math.cos(ra),cy+(OR+12)*Math.sin(ra)+3);
+  }
+}
+
+/* ── FMI table ── */
+function updateTable(res,step){
+  const tb=document.getElementById('fmi-body');tb.innerHTML='';
+  for(let i=0;i<360;i+=step){
+    const f=res.fmiArr[i],dv=res.devHz[i],er=res.brgErrArr[i];
+    const rc=f>=FMI_LO&&f<=FMI_HI?'r-ok':f>=FMI_WLO&&f<=FMI_WHI?'r-warn':'r-err';
+    const fc=f>=FMI_LO&&f<=FMI_HI?'var(--teal)':f>=FMI_WLO&&f<=FMI_WHI?'var(--amber)':'var(--red)';
+    const ec=Math.abs(er)>2?'var(--red)':Math.abs(er)>1?'var(--amber)':Math.abs(er)>0.5?'var(--amber)':'var(--teal)';
+    const st=rc==='r-ok'?'<span style="color:var(--teal)">✓ OK</span>':rc==='r-warn'?'<span style="color:var(--amber)">△ WARN</span>':'<span style="color:var(--red)">⚠ OOT</span>';
+    tb.innerHTML+=`<tr class="${rc}"><td>${pad3(i)}°</td><td style="font-weight:700;color:${fc}">${f.toFixed(3)}</td><td style="color:${fc}">${dv.toFixed(1)}</td><td style="color:${ec}">${er.toFixed(3)}</td><td>${st}</td></tr>`;
+  }
+}
+
+/* ── Top view ── */
+function drawTop(p,res){
+  const cvs=document.getElementById('c-top');
+  const W=cvs.parentElement.clientWidth||420,H=Math.max(155,cvs.parentElement.clientHeight||190);
+  cvs.width=W*devicePixelRatio;cvs.height=H*devicePixelRatio;
+  const ctx=cvs.getContext('2d');ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,W,H);
+  const cx=W*.5,cy=H*.5,viewR=p.R*4.5,sc=Math.min(W,H)*.42/viewR;
+  for(let r=1;r<=4;r++){ctx.beginPath();ctx.arc(cx,cy,r*p.R*sc,0,TWO_PI);ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=.5;ctx.stroke();}
+  ['N','E','S','W'].forEach((l,i)=>{const a=i*Math.PI/2,r=Math.min(W,H)*.46;ctx.fillStyle='#364e66';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText(l,cx+r*Math.sin(a),cy-r*Math.cos(a)+4);});
+  ctx.beginPath();ctx.arc(cx,cy,p.R*sc,0,TWO_PI);ctx.strokeStyle='rgba(36,116,200,0.22)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  res.antErr.forEach((e,n)=>{
+    const phi=res.phi_n[n];
+    const r=p.R+e.dr, ph=phi+e.dphi;
+    const ax=cx+r*sc*Math.sin(ph),ay=cy-r*sc*Math.cos(ph);
+    const isErr=Math.abs(e.dr)>5e-4||Math.abs(e.dphi)>1e-4;
+    ctx.beginPath();ctx.arc(ax,ay,isErr?4:1.8,0,TWO_PI);ctx.fillStyle=isErr?'#b83030':'#2474c8';ctx.fill();
+    if(isErr){
+      const nx=cx+p.R*sc*Math.sin(phi),ny=cy-p.R*sc*Math.cos(phi);
+      ctx.beginPath();ctx.arc(nx,ny,2,0,TWO_PI);ctx.strokeStyle='rgba(184,48,48,0.4)';ctx.lineWidth=.8;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(nx,ny);ctx.lineTo(ax,ay);ctx.strokeStyle='rgba(184,48,48,0.5)';ctx.lineWidth=.8;ctx.stroke();
+      ctx.fillStyle='#b83030';ctx.font='8px Courier New';ctx.textAlign='left';ctx.fillText('#'+n,ax+3,ay-3);
+    }
   });
-
-  h += `</tbody></table>`;
-  document.getElementById('cust-tbl-wrap').innerHTML = h;
-  document.getElementById('cust-grid-section').style.display = 'block';
-  document.getElementById('cust-status').textContent = '';
-
-  // Scroll to section
-  document.getElementById('cust-grid-section').scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-function onCustCell(inp){
-  // Update cell colour based on whether it has a value
-  inp.classList.toggle('has-val', inp.value !== '');
-}
-
-// Arrow-key navigation between cells
-function onCustKey(e, ri, ci){
-  const {nRows, nCols} = custMeta || {};
-  if(!nRows) return;
-  let nr=ri, nc=ci;
-  if(e.key==='ArrowDown'||e.key==='Enter'){nr=Math.min(nRows-1,ri+1);}
-  else if(e.key==='ArrowUp'){nr=Math.max(0,ri-1);}
-  else if(e.key==='ArrowRight'&&e.target.selectionStart===e.target.value.length){nc=Math.min(nCols-1,ci+1);}
-  else if(e.key==='ArrowLeft'&&e.target.selectionStart===0){nc=Math.max(0,ci-1);}
-  else if(e.key==='Tab'){nc=ci+(e.shiftKey?-1:1);if(nc<0){nc=nCols-1;nr=Math.max(0,ri-1);}if(nc>=nCols){nc=0;nr=Math.min(nRows-1,ri+1);} e.preventDefault();}
-  else return;
-  const target=document.getElementById(`c_${nr}_${nc}`);
-  if(target){target.focus();target.select();e.preventDefault();}
-}
-
-// Paste handler — accepts tab/comma-separated data pasted from Excel/spreadsheet
-function onCustPaste(e, startRow, startCol){
-  e.preventDefault();
-  const raw = (e.clipboardData||window.clipboardData).getData('text');
-  if(!raw||!custMeta) return;
-
-  // Parse: rows split by \n, cells by \t (Excel) or , (CSV)
-  const lines = raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim()!=='');
-  const {nRows, nCols} = custMeta;
-
-  lines.forEach((line, dr) => {
-    const ri = startRow + dr;
-    if(ri >= nRows) return;
-    const cells = line.includes('\t') ? line.split('\t') : line.split(',');
-    cells.forEach((val, dc) => {
-      const ci = startCol + dc;
-      if(ci >= nCols) return;
-      const inp = document.getElementById(`c_${ri}_${ci}`);
-      if(!inp) return;
-      const cleaned = val.trim().replace(/[^\d.\-]/g,'');
-      inp.value = cleaned;
-      inp.classList.toggle('has-val', cleaned !== '');
-    });
-  });
-
-  // Update status
-  const filled = countCustomFilled();
-  document.getElementById('cust-status').textContent =
-    `Pasted — ${filled} cells filled so far.`;
-}
-
-function countCustomFilled(){
-  if(!custMeta) return 0;
-  let n=0;
-  for(let ri=0;ri<custMeta.nRows;ri++)
-    for(let ci=0;ci<custMeta.nCols;ci++){
-      const inp=document.getElementById(`c_${ri}_${ci}`);
-      if(inp&&inp.value.trim()!=='') n++;
-    }
-  return n;
-}
-
-function clearCustomGrid(){
-  if(!custMeta) return;
-  for(let ri=0;ri<custMeta.nRows;ri++)
-    for(let ci=0;ci<custMeta.nCols;ci++){
-      const inp=document.getElementById(`c_${ri}_${ci}`);
-      if(inp){inp.value='';inp.classList.remove('has-val');}
-    }
-  document.getElementById('cust-status').textContent='Grid cleared.';
-}
-
-function fillCustomGrid(){
-  if(!custMeta) return;
-  const thrE = getThr();
-  for(let ri=0;ri<custMeta.nRows;ri++)
-    for(let ci=0;ci<custMeta.nCols;ci++){
-      const inp=document.getElementById(`c_${ri}_${ci}`);
-      if(inp&&inp.value.trim()===''){
-        inp.value=thrE.toFixed(3);
-        inp.classList.add('has-val');
-      }
-    }
-  document.getElementById('cust-status').textContent=
-    `Empty cells filled with threshold elevation (${thrE} m AMSL). Overwrite as needed.`;
-}
-
-function exportCustomCSV(){
-  if(!custMeta){alert('Generate a grid first.');return;}
-  let csv=['# ILS GP Analyzer — Custom ground profile','# Dist_from_THR(m),' + custMeta.latDists.map(l=>l+'m_from_CL').join(',')];
-  for(let ri=0;ri<custMeta.nRows;ri++){
-    const row=[custMeta.longDists[ri]];
-    for(let ci=0;ci<custMeta.nCols;ci++){
-      const inp=document.getElementById(`c_${ri}_${ci}`);
-      row.push(inp&&inp.value.trim()!==''?inp.value.trim():'');
-    }
-    csv.push(row.join(','));
+  ctx.beginPath();ctx.arc(cx,cy,5,0,TWO_PI);ctx.fillStyle='#c07808';ctx.fill();
+  ctx.fillStyle='#c07808';ctx.font='8px Courier New';ctx.textAlign='left';ctx.fillText('CTR',cx+7,cy+4);
+  if(p.obsEn){
+    const oSR=Math.min(W,H)*.40,ox=cx+oSR*Math.sin(p.obsAzD*D2R),oy=cy-oSR*Math.cos(p.obsAzD*D2R);
+    const aW=Math.atan2(p.obsW/2,p.obsD),hw=Math.max(3,aW*oSR*1.5),perp=p.obsAzD*D2R+Math.PI/2;
+    ctx.beginPath();ctx.moveTo(ox+hw*Math.cos(perp),oy+hw*Math.sin(perp));ctx.lineTo(ox-hw*Math.cos(perp),oy-hw*Math.sin(perp));ctx.strokeStyle='#b83030';ctx.lineWidth=3;ctx.stroke();
+    const ca1=(p.obsAzD*D2R-aW*2)-Math.PI/2,ca2=(p.obsAzD*D2R+aW*2)-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,oSR,ca1,ca2);ctx.closePath();ctx.fillStyle='rgba(184,48,48,0.07)';ctx.fill();
+    ctx.fillStyle='#b83030';ctx.font='8px Courier New';ctx.textAlign='left';
+    ctx.fillText(p.obsH.toFixed(0)+'m AGL @'+pad3(p.obsAzD)+'° d='+p.obsD+'m',ox+6,oy-5);
   }
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv.join('\n')],{type:'text/csv'}));
-  a.download='GP_custom_profile.csv';
-  a.click();
+  const bl=res.lam*sc,bx=6,by=H-10;
+  ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+bl,by);ctx.strokeStyle='#364e66';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#364e66';ctx.font='8px Courier New';ctx.textAlign='left';
+  ctx.fillText('1λ='+res.lam.toFixed(3)+'m  R='+p.R.toFixed(3)+'m',bx,by-3);
 }
 
-function useCustomGrid(){
-  if(!custMeta){alert('Generate a grid first.');return;}
-  const {longDists, latDists, nRows, nCols} = custMeta;
-  const rows={};
-  let filled=0, total=nRows*nCols;
+/* ── Metrics & pills ── */
+function updateMetrics(res){
+  function set(i,v,cls){document.getElementById('mv'+i).innerHTML=v;document.getElementById('mc'+i).className='mc '+cls;}
+  const fc=res.avg>=FMI_LO&&res.avg<=FMI_HI?'ok':res.avg>=FMI_WLO&&res.avg<=FMI_WHI?'warn':'err';
+  set(0,res.avg.toFixed(4),fc);set(1,res.refFMI.toFixed(4),'ok');
+  document.getElementById('mv2').innerHTML=res.mn.toFixed(3)+'<br>'+res.mx.toFixed(3);
+  document.getElementById('mc2').className='mc '+(res.mx-res.mn>0.8?'warn':'ok');
+  const ec=res.maxErr>2?'err':res.maxErr>1?'warn':'ok';
+  set(3,res.maxErr.toFixed(4),ec);set(4,res.avgDev.toFixed(2),'ok');
+  const rc=res.fmiRatio>.95&&res.fmiRatio<1.05?'ok':res.fmiRatio>.9&&res.fmiRatio<1.1?'warn':'err';
+  set(5,res.fmiRatio.toFixed(5),rc);
 
-  for(let ri=0;ri<nRows;ri++){
-    const ld=longDists[ri];
-    rows[ld]={};
-    for(let ci=0;ci<nCols;ci++){
-      const inp=document.getElementById(`c_${ri}_${ci}`);
-      const v=inp?parseFloat(inp.value.trim()):NaN;
-      rows[ld][latDists[ci]]=isNaN(v)?null:parseFloat(v.toFixed(3));
-      if(!isNaN(v)&&inp&&inp.value.trim()!=='') filled++;
+  // Pills
+  function pill(id,text,cls){const e=document.getElementById(id);if(e){e.textContent=text;e.className='vpill '+cls;}}
+  const polarOk=res.mn>0.8&&(res.mx-res.mn)<0.1;
+  pill('pill-polar',polarOk?'Circular ✓':'⚠ Distorted',polarOk?'ok':'warn');
+  const fmiOk=res.avg>=FMI_LO&&res.avg<=FMI_HI;
+  pill('pill-fmi',fmiOk?'FMI OK ✓':'⚠ FMI OOT',fmiOk?'ok':'warn');
+  const phOk=Math.max(...res.phErrArr.map(Math.abs))<=1.0;
+  pill('pill-phase',phOk?'Phase OK ✓':'⚠ Phase err',phOk?'ok':'warn');
+  const errOk=res.maxErr<=1.0,errCat=res.maxErr<=2.0;
+  pill('pill-err',errOk?'Brg OK ✓':errCat?'⚠ >1°':'⚠ CAT I fail',errOk?'ok':errCat?'warn':'err');
+
+  const sb=document.getElementById('stbar');sb.className='stbar';
+  let m=`FMI=${res.avg.toFixed(4)} | range ${res.mn.toFixed(3)}–${res.mx.toFixed(3)} | dev ${res.avgDev.toFixed(1)}Hz | maxBrgErr ${res.maxErr.toFixed(4)}° | FMI ratio ${res.fmiRatio.toFixed(5)}`;
+  if(res.avg<FMI_LO||res.avg>FMI_HI){sb.classList.add('warn');m='⚠ '+m+' ← FMI outside 15–17';}
+  else if(res.maxErr>2){sb.classList.add('err');m='⚠ '+m+' ← bearing err >2° CAT I FAIL';}
+  else if(res.maxErr>1){sb.classList.add('warn');m='⚠ '+m+' ← bearing err >1° ICAO site limit';}
+  else m='✓ '+m+' ← within ICAO limits';
+  sb.textContent=m;
+}
+
+/* ── Params ── */
+function getP(){
+  const freq=+document.getElementById('freq').value;
+  const R=icaoRadius(freq);
+  const cph=+document.getElementById('cph').value;
+  const txh=+document.getElementById('txh').value;
+  return{freq,R,N:+document.getElementById('ndip').value,
+    sb:+document.getElementById('sb').value,
+    rm:+document.getElementById('rm').value,
+    cph, txH:txh,
+    obsEn:document.getElementById('obs-en').checked,
+    obsH:+document.getElementById('obs-h').value,
+    obsD:+document.getElementById('obs-d').value,
+    obsAzD:+document.getElementById('obs-az').value,
+    obsW:+document.getElementById('obs-w').value,
+    showRef:document.getElementById('showref').checked,
+    normalize:document.getElementById('norm').checked,
+    step:+document.getElementById('tstep').value,
+    antEn:document.getElementById('ant-en').checked,
+    antErr:readAntErrors(),
+    rxAz:+document.getElementById('rxaz').value,
+    twin:+document.getElementById('twin').value};
+}
+function updateLabels(p){
+  const lam=C/(p.freq*1e6);
+  const dipAGL=(p.cph+p.txH);
+  document.getElementById('vv-f').textContent=p.freq.toFixed(2);
+  document.getElementById('vv-sb').textContent=p.sb.toFixed(3);
+  document.getElementById('vv-rm').textContent=p.rm.toFixed(3);
+  document.getElementById('vv-cph').textContent=p.cph.toFixed(2)+'m';
+  document.getElementById('vv-txh').textContent=p.txH.toFixed(2)+'m';
+  document.getElementById('total-tx-ht').textContent=dipAGL.toFixed(2)+'m';
+  document.getElementById('vv-oh').textContent=p.obsH.toFixed(1)+'m';
+  document.getElementById('vv-od').textContent=p.obsD+'m';
+  document.getElementById('vv-oaz').textContent=pad3(p.obsAzD)+'°';
+  document.getElementById('vv-ow').textContent=p.obsW+'m';
+  document.getElementById('vv-rxaz').textContent=pad3(p.rxAz)+'°';
+  document.getElementById('vv-twin').textContent=p.twin+'ms';
+  document.getElementById('ro-r').textContent=p.R.toFixed(4)+' m';
+  document.getElementById('b-f').textContent=p.freq.toFixed(2)+' MHz';
+  document.getElementById('b-l').textContent='λ='+lam.toFixed(4)+'m';
+  document.getElementById('b-r').textContent='R='+p.R.toFixed(3)+'m';
+  document.getElementById('b-n').textContent='N='+p.N;
+  document.getElementById('tx-agl').textContent=dipAGL.toFixed(2)+'m';
+  const hEff=Math.max(0,p.obsH-dipAGL);
+  document.getElementById('eff-obs').textContent=hEff.toFixed(2)+'m';
+  if(p.obsEn&&p.obsD>0){
+    const vv=hEff*Math.sqrt((2/lam)*(1/p.obsD+1/8000));
+    document.getElementById('vv-fresnel').textContent=vv.toFixed(3);
+    document.getElementById('vv-dloss').textContent=Math.abs(keDB(vv)).toFixed(1);
+  }else{document.getElementById('vv-fresnel').textContent='—';document.getElementById('vv-dloss').textContent='—';}
+}
+
+/* ── Antenna table ── */
+let lastN=48;
+function buildAntTable(N){
+  const tb=document.getElementById('aet-body');tb.innerHTML='';
+  for(let n=0;n<N;n++){
+    tb.innerHTML+=`<tr id="arow-${n}"><td style="color:var(--tx3)">${n}</td>
+      <td><input type="number" id="dr-${n}" value="0" step="0.01" min="-3" max="3" oninput="schedUpdate()"></td>
+      <td><input type="number" id="dp-${n}" value="0" step="0.1" min="-15" max="15" oninput="schedUpdate()"></td>
+      <td id="anote-${n}" style="color:var(--tx3);font-size:8px">nom</td></tr>`;
+  }
+}
+function readAntErrors(){
+  const N=+document.getElementById('ndip').value,out={};
+  for(let n=0;n<N;n++){
+    const dEl=document.getElementById('dr-'+n),pEl=document.getElementById('dp-'+n);
+    if(!dEl)continue;
+    const dr=parseFloat(dEl.value)||0,dphi=parseFloat(pEl.value)||0;
+    out[n]={dr,dphi};
+    const row=document.getElementById('arow-'+n),note=document.getElementById('anote-'+n);
+    if(row&&note){
+      if(dr||dphi){row.style.background='rgba(184,48,48,.1)';const pt=[];if(dr)pt.push('ΔR='+dr.toFixed(3)+'m');if(dphi)pt.push('Δφ='+dphi.toFixed(1)+'°');note.textContent=pt.join(' ');note.style.color='var(--amber)';}
+      else{row.style.background='';note.textContent='nom';note.style.color='var(--tx3)';}
     }
   }
-
-  if(filled===0){
-    document.getElementById('cust-status').textContent='⚠ No values entered. Enter at least some elevation data first.';
-    return;
-  }
-
-  gridData = {longDists:[...longDists], latDists:[...latDists], rows};
-
-  const pct=Math.round(filled/total*100);
-  setBadge(`Custom profile — ${nRows}×${nCols}, ${filled}/${total} filled (${pct}%)`,
-    pct<30?'warn':'ok');
-  document.getElementById('nb-up').textContent=nRows+'r';
-  document.getElementById('nb-custom').textContent='✓';
-  document.getElementById('nb-custom').style.background='rgba(18,184,128,.15)';
-  document.getElementById('nb-custom').style.borderColor='var(--teal2)';
-  document.getElementById('nb-custom').style.color='var(--teal)';
-
-  document.getElementById('cust-status').textContent=
-    `✓ Loaded — ${filled} cells (${pct}%). Go to Profile Data to verify, then Run Analysis.`;
-
-  liveUpdate();
-
-  // Navigate to upload/preview page
-  goto('upload');
+  return out;
+}
+function sv(id,v){const e=document.getElementById(id);if(e)e.value=v;}
+function applyPreset(){
+  const N=+document.getElementById('ndip').value;buildAntTable(N);
+  const pr=document.getElementById('preset').value;
+  if(pr==='r1')sv('dr-0','0.300');
+  else if(pr==='r2')sv('dr-0','-0.200');
+  else if(pr==='a1')sv('dp-0','3.0');
+  else if(pr==='two'){sv('dr-0','0.300');sv('dp-'+Math.floor(N/4),'3.5');sv('dr-'+Math.floor(N/2),'-0.200');}
+  else if(pr==='rand'){for(let n=0;n<N;n++){sv('dr-'+n,((Math.random()-.5)*.08).toFixed(4));sv('dp-'+n,((Math.random()-.5)*.4).toFixed(3));}}
+  if(pr!=='none'){document.getElementById('ant-en').checked=true;document.getElementById('aet-wrap').style.display='block';}
+  schedUpdate();
+}
+function switchTab(el,id){
+  document.querySelectorAll('.tabp').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  el.classList.add('on');
 }
 
-function countFilled(){
-  if(!gridData) return{filled:0,total:0};
-  let f=0,t=0;
-  gridData.longDists.forEach(ld=>gridData.latDists.forEach(lat=>{t++;if(gridData.rows[ld]?.[lat]!=null)f++;}));
-  return{filled:f,total:t};
+/* ── Main update ── */
+let raf=null;
+function schedUpdate(){if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(doUpdate);}
+function doUpdate(){
+  const p=getP();
+  if(p.N!==lastN){lastN=p.N;buildAntTable(p.N);}
+  updateLabels(p);
+  const res=computeAll(p);
+  if(!animRunning)drawPolar(res.radPat,p.showRef,p.normalize,undefined);
+  updateStaticCharts(res,p);
+  updateRFCharts(p,res,p.rxAz);
+  drawRing(res.fmiArr);
+  updateTable(res,p.step);
+  updateMetrics(res);
+  drawTop(p,res);
 }
 
-// ════════════════════════════════════════════════════════
-//  LIVE UPDATE (sidebar values)
-// ════════════════════════════════════════════════════════
-function liveUpdate(){
-  const off=parseInt(document.getElementById('antOff').value)||300;
-  const lat=parseInt(document.getElementById('antLat').value)||120;
-  const freq=parseFloat(document.getElementById('freq').value)||332;
-  const tDeg=parseFloat(document.getElementById('glide').value)||3;
-  const sys=document.getElementById('antSystem').value;
-  const p=antParams(sys,freq,tDeg);
-  const sysNames={MA:'M-Array',NR:'0-Ref (NR)',SR:'SB-Ref'};
-
-  document.getElementById('lb-row').textContent='Row −'+off+'  ('+off+' m past THR)';
-  // Flat-ground nominal values (RF params only, no terrain)
-  document.getElementById('lb-h1').textContent=p.h_lo.toFixed(3)+' m *';
-  document.getElementById('lb-nf').textContent=p.nf_dist.toFixed(1)+' m *';
-  document.getElementById('lb-nfh').textContent=p.nf_height.toFixed(2)+' m *';
-  document.getElementById('sysChip').textContent=sysNames[sys];
-
-  if(!gridData){
-    document.getElementById('lb-elev').textContent='— (load data first)';
-    document.getElementById('lb-elev').style.color='var(--tx3)';
-    document.getElementById('lb-rdh').textContent='— (load data first)';
-    document.getElementById('lb-rdh').style.color='var(--tx3)';
-    document.getElementById('lb-rdh').className='lv';
-    return;
-  }
-  const mastElev=getElev(-off,lat), thrGE=getElev(0,0);
-  const rdh=computeRDH(mastElev,p.h_lo,off,p.theta,thrGE);
-  const rdh_ft=rdh*3.281;
-  const rdhOk=rdh>=14&&rdh<=18, rdhWarn=!rdhOk&&rdh>=12&&rdh<=20;
-  document.getElementById('lb-elev').textContent=mastElev.toFixed(3)+' m AMSL';
-  document.getElementById('lb-elev').style.color='';
-  document.getElementById('lb-rdh').textContent=rdh.toFixed(2)+' m ('+rdh_ft.toFixed(0)+' ft)';
-  document.getElementById('lb-rdh').style.color='';
-  document.getElementById('lb-rdh').className='lv '+(rdhOk?'t':rdhWarn?'w':'e');
-  const rc=document.getElementById('rdhChip');
-  rc.textContent='RDH '+rdh.toFixed(1)+'m';
-  rc.style.borderColor=rdhOk?'var(--teal2)':rdhWarn?'var(--amber2)':'var(--red2)';
-  rc.style.color=rdhOk?'var(--teal)':rdhWarn?'var(--amber)':'var(--red)';
-  renderPreview();
-}
-
-// ════════════════════════════════════════════════════════
-//  SAMPLE DATA
-// ════════════════════════════════════════════════════════
-function loadSample(){
-  const thrE=getThr();
-  const lds=[], lats=[0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150];
-  for(let d=-380;d<=150;d+=10) lds.push(d);
-  const rows={};
-  lds.forEach(ld=>{
-    rows[ld]={};
-    lats.forEach(lat=>{
-      let e=thrE;
-      if(ld<0) e+=Math.abs(ld)*0.0015;
-      if(ld>0) e+=ld*0.001;
-      e+=lat*0.003+Math.sin(ld/120)*0.12+Math.cos(lat/50)*0.07;
-      rows[ld][lat]=parseFloat(e.toFixed(3));
-    });
-  });
-  gridData={longDists:lds,latDists:lats,rows};
-  setBadge(`Sample — ${lds.length}×${lats.length} grid loaded @ THR=${thrE} m AMSL`,'ok');
-  document.getElementById('nb-up').textContent=lds.length+'r';
-  // Update sidebar live values only — do NOT run analysis automatically
-  liveUpdate();
-  // Show grid preview on upload page and navigate there
-  renderPreview();
-  goto('upload');
-}
-
-// ════════════════════════════════════════════════════════
-//  FILE UPLOAD — Lagoon proforma parser
-// ════════════════════════════════════════════════════════
-document.getElementById('fileIn').addEventListener('change',function(e){
-  const f=e.target.files[0]; if(!f) return;
-  const fn=f.name.toLowerCase();
-  if(fn.includes('left')) setSide('left');
-  else if(fn.includes('right')) setSide('right');
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const wb=XLSX.read(ev.target.result,{type:'binary'});
-      parseLagoon(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1}),f.name);
-    }catch(err){ setBadge('Parse error: '+err.message,'err'); }
-  };
-  reader.readAsBinaryString(f);
+/* ── Wire controls ── */
+document.querySelectorAll('input:not([type=number]),select').forEach(el=>el.addEventListener('input',schedUpdate));
+document.getElementById('ant-en').addEventListener('change',()=>{
+  document.getElementById('aet-wrap').style.display=document.getElementById('ant-en').checked?'block':'none';
+  schedUpdate();
 });
 
-function parseLagoon(arr,fname){
-  // Lagoon format: header row where col[1]=150 and col[16]=0
-  // Col 17 = longitudinal distance, cols 1-16 = laterals 150m…0m
-  let hrow=-1;
-  for(let i=0;i<arr.length;i++){
-    if(arr[i]&&arr[i][1]===150&&arr[i][16]===0){hrow=i;break;}
-  }
-  if(hrow<0){
-    for(let i=0;i<arr.length;i++){
-      if(arr[i]&&arr[i].some(v=>v===150)&&arr[i].some(v=>v===0)){hrow=i;break;}
-    }
-  }
-  if(hrow<0){setBadge('Header row not found. Check Lagoon format.','err');return;}
-
-  const hdr=arr[hrow];
-  const latCols={};
-  hdr.forEach((v,ci)=>{if(typeof v==='number'&&v>=0&&v<=150)latCols[v]=ci;});
-  const lats=Object.keys(latCols).map(Number).sort((a,b)=>a-b);
-
-  const rows={},lds=[];
-  for(let ri=hrow+1;ri<arr.length;ri++){
-    const row=arr[ri]; if(!row) continue;
-    let ld=row[17];
-    if(ld==null) continue;
-    if(typeof ld==='string'&&ld.includes('THR')) ld=0;
-    if(typeof ld==='string') ld=parseFloat(ld);
-    if(isNaN(ld)) continue;
-    ld=Math.round(ld);
-    if(lds.includes(ld)) continue;
-    lds.push(ld); rows[ld]={};
-    lats.forEach(lat=>{
-      const v=row[latCols[lat]];
-      rows[ld][lat]=(typeof v==='number'&&!isNaN(v))?parseFloat(v.toFixed(3)):null;
-    });
-  }
-  if(lds.length<3){setBadge('Too few data rows found','err');return;}
-  gridData={longDists:[...new Set(lds)].sort((a,b)=>a-b),latDists:lats,rows};
-  const{filled,total}=countFilled();
-  const pct=Math.round(filled/total*100);
-  const s=filled===0?'err':pct<30?'warn':'ok';
-  setBadge(`${fname} — ${lds.length}×${lats.length}, ${filled}/${total} filled (${pct}%)`,s);
-  if(filled===0){
-    document.getElementById('dqBox').style.display='block';
-    document.getElementById('dqBox').innerHTML='<div class="alert err"><span class="alert-ico">✗</span><span>Blank proforma — no elevation data. Fill in ground elevation values (m AMSL) in the Lagoon Excel before uploading.</span></div>';
-  }
-  document.getElementById('nb-up').textContent=lds.length+'r';
-  liveUpdate();
-}
-
-function setBadge(msg,s){
-  document.getElementById('dpill').className='pill '+(s||'ok');
-  document.getElementById('dtxt').textContent=msg;
-  document.getElementById('sdot').className='sdot '+(s==='ok'?'ok':s==='warn'?'warn':'err');
-  document.getElementById('stxt').textContent=s==='ok'?'Data ready — run analysis':s==='warn'?'Partial data':'Error';
-  const sc=document.getElementById('statusChip');
-  sc.textContent=s==='ok'?'Data ready':s==='warn'?'Partial':'Error';
-  sc.style.borderColor=s==='ok'?'var(--teal2)':s==='warn'?'var(--amber2)':'var(--red2)';
-  sc.style.color=s==='ok'?'var(--teal)':s==='warn'?'var(--amber)':'var(--red)';
-}
-
-// ════════════════════════════════════════════════════════
-//  GRID PREVIEW
-// ════════════════════════════════════════════════════════
-function renderPreview(){
-  if(!gridData) return;
-  const off=parseInt(document.getElementById('antOff').value)||300;
-  const lat=parseInt(document.getElementById('antLat').value)||120;
-  const antRow=-off;
-  document.getElementById('prevEmpty').style.display='none';
-  document.getElementById('prevBlock').style.display='block';
-  const{filled,total}=countFilled();
-  document.getElementById('gridInfo').textContent=`${gridData.longDists.length}×${gridData.latDists.length} — ${filled}/${total} cells`;
-  const lats=[...gridData.latDists].sort((a,b)=>b-a);
-  const allRows=[...gridData.longDists].sort((a,b)=>b-a);
-  let h='<table class="gt"><thead><tr><th>Row (m)</th>'+lats.map(l=>`<th>${l}m</th>`).join('')+'</tr></thead><tbody>';
-  allRows.slice(0,40).forEach(ld=>{
-    const isAnt=ld===antRow, isThr=ld===0;
-    h+=`<tr><td class="fix${isAnt?' ar':isThr?' tr':''}">${ld}${isAnt?' ★':isThr?' [THR]':''}</td>`;
-    lats.forEach(lc=>{
-      const v=gridData.rows[ld]?.[lc];
-      const cls=isAnt&&lc===lat?'ac':v!=null?(isThr?'tr':'has'):'ec';
-      h+=`<td class="${cls}">${v!=null?v:'—'}</td>`;
-    });
-    h+='</tr>';
-  });
-  if(allRows.length>40) h+=`<tr><td class="fix" colspan="${lats.length+1}" style="text-align:center;color:var(--tx4)">… ${allRows.length-40} more rows</td></tr>`;
-  h+='</tbody></table>';
-  document.getElementById('gridTbl').innerHTML=h;
-}
-
-// ════════════════════════════════════════════════════════
-//  MAIN ANALYSIS ENGINE
-// ════════════════════════════════════════════════════════
-function runAnalysis(){
-  if(!gridData){alert('Load profile data first.');goto('upload');return;}
-  const{filled}=countFilled();
-  if(filled===0){alert('No elevation data. Fill the Lagoon proforma first.');goto('upload');return;}
-
-  const freq=parseFloat(document.getElementById('freq').value);
-  const tDeg=parseFloat(document.getElementById('glide').value);
-  const antOff=parseInt(document.getElementById('antOff').value);
-  const antLat=parseInt(document.getElementById('antLat').value);
-  const sys=document.getElementById('antSystem').value;
-  const icao=document.getElementById('icao').value||'—';
-  const rwy=document.getElementById('rwy').value||'—';
-
-  const p=antParams(sys,freq,tDeg);
-  const mastRow=-antOff;
-  const mastElev=getElev(mastRow,antLat);
-  const thrGE=getElev(0,0);
-
-  // Slope correction (applied to h_lo only; other heights scale proportionally)
-  const sl=slopeAt(-antOff/2);
-  const sCorr=-sl*antOff*0.5;
-  const h_lo_c=Math.max(p.h_lo+sCorr, p.h_lo*0.85);
-  const ratio=h_lo_c/p.h_lo;
-  const h_hi_c=p.h_hi*ratio;
-  const h_mid_c=p.h_mid!=null?p.h_mid*ratio:null;
-
-  // NF with corrected heights
-  const nf_dist=h_lo_c*(h_lo_c+h_hi_c)/p.lam;
-  const nf_height=nf_dist*Math.tan(p.nfMonTheta);
-
-  // RDH
-  const rdh=computeRDH(mastElev,h_lo_c,antOff,p.theta,thrGE);
-  const rdh_ft=rdh*3.281;
-  const rdhOk=rdh>=14&&rdh<=18, rdhWarn=!rdhOk&&rdh>=12&&rdh<=20;
-  const req_off=reqOff(15.0,mastElev,h_lo_c,p.theta,thrGE);
-
-  // RDH solution via LATERAL distance (C/L offset)
-  // Changing lateral moves mast across the sideways slope (SSL)
-  // delta_RDH = delta_lat * SSL  =>  new_lat = old_lat + (15 - rdh) / SSL
-  // SSL computed from grid: elevation change per metre lateral at mast row
-  const ssl_raw=sslAt(-antOff, antLat);
-  const ssl_nonzero = Math.abs(ssl_raw)>0.0001 ? ssl_raw : null;
-  const rdh_deficit = 15.0 - rdh; // positive = need more RDH, negative = too high
-  let req_lat_abs = null, req_lat_dir = '';
-  if(ssl_nonzero !== null){
-    const delta_lat = rdh_deficit / ssl_nonzero;
-    req_lat_abs = Math.round(antLat + delta_lat);
-    req_lat_dir = delta_lat > 0 ? 'increase lateral (move further from C/L)' : 'decrease lateral (move closer to C/L)';
-    // clamp to grid bounds
-    if(req_lat_abs < 10) req_lat_abs = 10;
-    if(req_lat_abs > 150) req_lat_abs = 150;
-  }
-
-  // Reflection point
-  const denom=Math.tan(p.theta)+(mastElev-thrGE)/antOff;
-  let rD=denom>0?antOff*Math.tan(p.theta)/denom:antOff*0.5;
-  rD=Math.min(Math.max(rD,10),antOff*0.9);
-  const frR=rD>0&&rD<antOff?Math.sqrt(p.lam*rD*(antOff-rD)/antOff):0;
-
-  // OCS check
-  const ocsA=p.theta+(1.75*Math.PI/180);
-  const viol=[];
-  gridData.longDists.forEach(ld=>{
-    const dist=Math.abs(mastRow-ld);
-    if(dist<5||dist>antOff*3.5) return;
-    const elev=gridData.rows[ld]?.[0]; if(elev==null) return;
-    const ocsH=(mastElev+h_lo_c)-dist*Math.tan(ocsA);
-    if(elev>ocsH) viol.push({ld,dist:Math.round(dist),elev,excess:(elev-ocsH).toFixed(3)});
-  });
-  const ocsOk=viol.length===0;
-
-  const sysNames={MA:'M-Array / Capture Effect',NR:'Null Reference (0-Ref)',SR:'Sideband Reference'};
-  const sysNamesShort={MA:'M-Array',NR:'0-Ref',SR:'SB-Ref'};
-  document.getElementById('ant-title').textContent=sysNames[sys]+' — heights from mast base';
-
-  // ── ANTENNA HEIGHT CARDS ──
-  const twoEl=sys==='NR'||sys==='SR';
-  let aCards;
-  if(twoEl){
-    aCards=[
-      {cls:'rc-t',n:'Lower antenna',f:sys==='NR'?'h_L = λ/(4sinθ)':'h_L = λ/(8sinθ)',h:h_lo_c,nom:p.h_lo},
-      {cls:'rc-a',n:'Upper antenna',f:sys==='NR'?'h_U = 2·h_L':'h_U = 3·h_L',h:h_hi_c,nom:p.h_hi},
-      {cls:'rc-b',n:'NF monitor height AGL',f:'= NF_dist × tan('+(sys==='SR'?'2θ':'θ')+')',h:nf_height,isNFH:true},
-    ];
-  } else {
-    aCards=[
-      {cls:'rc-t',n:'Lower SBO',f:'h₁ = λ/(4sinθ)',h:h_lo_c,nom:p.h_lo},
-      {cls:'rc-b',n:'Middle CSB',f:'h₂ = 2·h₁',h:h_mid_c,nom:p.h_mid},
-      {cls:'rc-a',n:'Upper SBO',f:'h₃ = 3·h₁',h:h_hi_c,nom:p.h_hi},
-    ];
-  }
-  document.getElementById('antCards').innerHTML=aCards.map(a=>`<div class="rcard ${a.cls}">
-    <div class="rc-label">${a.n}</div>
-    <div class="rc-formula">${a.f}</div>
-    <div class="rc-val">${a.h.toFixed(3)}</div>
-    <div class="rc-unit">${a.isNFH?'m AGL at NF monitor position':'m above mast base'}</div>
-    <div class="rc-sub">
-      ${a.isNFH?'Install NF monitor antenna at this height.':'Flat ground nominal: '+a.nom.toFixed(3)+' m'}<br>
-      ${a.isNFH?'':'Mast base AMSL: '+mastElev.toFixed(3)+' m'}<br>
-      ${a.isNFH?'':'Element AMSL: '+(mastElev+a.h).toFixed(3)+' m'}
-    </div></div>`).join('');
-
-  // ── NF CARDS ──
-  document.getElementById('nfCards').innerHTML=`
-    <div class="rcard rc-p">
-      <div class="rc-label">NF monitor distance</div>
-      <div class="rc-formula">h_lo·(h_lo+h_hi)/λ</div>
-      <div class="rc-val">${nf_dist.toFixed(1)}</div>
-      <div class="rc-unit">m from antenna mast toward THR</div>
-      <div class="rc-sub">Place NF monitor antenna here. Pattern inversion (360° phase error) at this distance. DDM readings valid and proportional to far-field. ${sys==='SR'?'SR: monitor at 2×glide angle.':''}</div>
-    </div>
-    <div class="rcard rc-g">
-      <div class="rc-label">NF monitor antenna height</div>
-      <div class="rc-formula">= NF_dist × tan(${sys==='SR'?'2×':''}θ)</div>
-      <div class="rc-val">${nf_height.toFixed(2)}</div>
-      <div class="rc-unit">m AGL at the ${nf_dist.toFixed(0)} m position</div>
-      <div class="rc-sub">Mount the NF monitor antenna at this height above local ground level. ${sys==='SR'?'Sideband Reference: monitor points at 2θ = '+(2*tDeg).toFixed(1)+'° elevation.':'Monitor elevation angle = θ = '+tDeg+'°.'}</div>
-    </div>
-    <div class="rcard rc-b">
-      <div class="rc-label">Reflection point</div>
-      <div class="rc-formula">geometric from terrain</div>
-      <div class="rc-val">${Math.round(rD)}</div>
-      <div class="rc-unit">m from mast toward THR</div>
-      <div class="rc-sub">Specular reflection point. Fresnel zone radius: ${frR.toFixed(1)} m. Terrain must be flat and clear within this zone. Slope correction: ${(sCorr>=0?'+':'')+sCorr.toFixed(3)} m.</div>
-    </div>`;
-
-  // ── RDH CARDS — now 3 cards (computed, offset solution, lateral solution) ──
-  const rdhCls=rdhOk?'rc-ok':rdhWarn?'rc-warn':'rc-err';
-  const off_diff = Math.abs(antOff - Math.round(req_off));
-  const off_action = antOff > req_off
-    ? `Move mast ${off_diff} m closer to THR`
-    : antOff < req_off
-      ? `Move mast ${off_diff} m further from THR`
-      : 'No change needed';
-
-  const lat_card = ssl_nonzero !== null ? `
-    <div class="rcard rc-b">
-      <div class="rc-label">Solution B — Adjust C/L distance</div>
-      <div class="rc-formula">new_lat = lat + (15−RDH) / SSL</div>
-      <div class="rc-val">${req_lat_abs}</div>
-      <div class="rc-unit">m from runway centreline</div>
-      <div class="rc-sub">
-        <span style="color:var(--tx3)">Current lateral:</span> <b style="color:var(--tx)">${antLat} m</b> &nbsp;→&nbsp; <b style="color:var(--blue)">${req_lat_abs} m</b><br>
-        <span style="color:var(--tx3)">Side slope (SSL):</span> <b style="color:var(--tx)">${(ssl_nonzero*1000).toFixed(2)} mm/m</b><br>
-        <span style="color:var(--tx3)">RDH change needed:</span> <b style="color:var(--tx)">${rdh_deficit>=0?'+':''}${rdh_deficit.toFixed(2)} m</b><br>
-        <span style="color:${Math.abs(antLat-(req_lat_abs||antLat))>5?'var(--amber)':'var(--teal)'}">→ ${req_lat_dir}</span>
-      </div>
-    </div>` : `
-    <div class="rcard rc-b">
-      <div class="rc-label">Solution B — Adjust C/L distance</div>
-      <div class="rc-formula">new_lat = lat + (15−RDH) / SSL</div>
-      <div class="rc-val" style="font-size:14px;margin-top:6px">N/A</div>
-      <div class="rc-unit">SSL not computable</div>
-      <div class="rc-sub">
-        Sideways slope (SSL) could not be computed from the current grid data at the mast position.<br>
-        Provide elevation data at multiple lateral distances to enable this solution.
-      </div>
-    </div>`;
-
-  document.getElementById('rdhCards').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-    <div class="rcard ${rdhCls}">
-      <div class="rc-label">RDH / TCH — computed</div>
-      <div class="rc-formula">(mastElev + h_lo − thrElev) + offset × tanθ</div>
-      <div class="rc-val ${rdhOk?'t':rdhWarn?'w':'e'}" style="font-size:28px">${rdh.toFixed(2)}</div>
-      <div class="rc-unit" style="font-size:11px;margin-top:4px"><b>${rdh_ft.toFixed(0)} ft</b> &nbsp;|&nbsp; ICAO standard: <b>15 m ± 3 m</b> (50 ft ± 10 ft)</div>
-      <div class="rc-sub">
-        <span style="color:var(--tx3)">Mast ground:</span> <b>${mastElev.toFixed(3)} m AMSL</b><br>
-        <span style="color:var(--tx3)">THR ground:</span> <b>${thrGE.toFixed(3)} m AMSL</b><br>
-        <span style="color:var(--tx3)">Height diff:</span> <b>${(mastElev-thrGE>=0?'+':'')+(mastElev-thrGE).toFixed(3)} m</b><br>
-        <span style="font-size:10px;color:${rdhOk?'var(--teal)':rdhWarn?'var(--amber)':'var(--red)'}">
-          ${rdhOk?'✓ Within ICAO tolerance':rdhWarn?'⚠ Marginal — verify by flight check':'✗ Outside tolerance — correction required'}
-        </span>
-      </div>
-    </div>
-    <div class="rcard rc-p">
-      <div class="rc-label">Solution A — Adjust offset from THR</div>
-      <div class="rc-formula">(15 − mastElev − h_lo + thrElev) / tanθ</div>
-      <div class="rc-val">${Math.round(req_off)}</div>
-      <div class="rc-unit">m from threshold (longitudinal)</div>
-      <div class="rc-sub">
-        <span style="color:var(--tx3)">Current offset:</span> <b style="color:var(--tx)">${antOff} m</b> → RDH = ${rdh.toFixed(2)} m<br>
-        <span style="color:var(--tx3)">Required offset:</span> <b style="color:var(--purple)">${Math.round(req_off)} m</b> → RDH = 15.0 m<br>
-        <span style="color:var(--tx3)">Change needed:</span> <b style="color:var(--tx)">${off_diff} m</b><br>
-        <span style="color:${off_diff>3?'var(--amber)':'var(--teal)'}">→ ${off_action}</span>
-      </div>
-    </div>
-    ${lat_card}
-    </div>`;
-
-  // ── SITE CARDS ──
-  document.getElementById('siteCards').innerHTML=`
-    <div class="rcard ${ocsOk?'rc-ok':'rc-err'}">
-      <div class="rc-label">OCS status</div>
-      <div class="rc-formula">angle = θ + 1.75°</div>
-      <div class="rc-val ${ocsOk?'t':'e'}">${ocsOk?'PASS':'FAIL'}</div>
-      <div class="rc-unit">ICAO Annex 10 §3.1.5</div>
-      <div class="rc-sub">${viol.length} violation(s). OCS angle = ${(tDeg+1.75).toFixed(2)}°. Only cells with actual data are checked.</div>
-    </div>
-    <div class="rcard rc-t">
-      <div class="rc-label">Mast ground elevation</div>
-      <div class="rc-formula">from uploaded grid</div>
-      <div class="rc-val">${mastElev.toFixed(2)}</div>
-      <div class="rc-unit">m AMSL — row −${antOff}, col ${antLat}m</div>
-      <div class="rc-sub">THR ground elev: ${thrGE.toFixed(2)} m AMSL<br>Height diff: ${(mastElev-thrGE>=0?'+':'')+((mastElev-thrGE).toFixed(2))} m<br>System: ${sysNames[sys]}</div>
-    </div>
-    <div class="rcard rc-a">
-      <div class="rc-label">Slope correction on h_lo</div>
-      <div class="rc-formula">−slope×offset×0.5</div>
-      <div class="rc-val">${(sCorr>=0?'+':'')+sCorr.toFixed(3)}</div>
-      <div class="rc-unit">meters</div>
-      <div class="rc-sub">Forward slope: ${(sl*1000).toFixed(2)} mm/m<br>${Math.abs(sCorr)>0.15?'⚠ Significant — verify survey accuracy at row ≈ −'+Math.round(rD)+'m':'Within normal range'}</div>
-    </div>`;
-
-  // ── PARAMETER TABLE ──
-  const midRow=h_mid_c!=null?[['Middle (CSB) h₂ = 2×h_lo',h_mid_c.toFixed(4)+' m']]:[];
-  const ps=[
-    ['— Station —',''],
-    ['Airport / runway',`${icao} RWY ${rwy}`],
-    ['GP side',gpSide==='left'?'Left GP':'Right GP'],
-    ['Antenna system',sysNames[sys]],
-    ['— Mast position —',''],
-    ['Distance into runway from THR',antOff+' m  →  Excel row −'+antOff],
-    ['Distance from centreline',antLat+' m  →  Excel col '+antLat+'m'],
-    ['Ground elev. at mast base',mastElev.toFixed(4)+' m AMSL (from grid)'],
-    ['Threshold ground elev.',thrGE.toFixed(4)+' m AMSL'],
-    ['— RF parameters —',''],
-    ['Frequency',freq.toFixed(1)+' MHz'],
-    ['Wavelength λ = 300/f',p.lam.toFixed(4)+' m'],
-    ['Glide angle θ',tDeg.toFixed(1)+'°'],
-    ['— Antenna heights from mast base —',''],
-    sys==='NR'?['h_lower = λ/(4sinθ) nominal',p.h_lo.toFixed(4)+' m']:
-    sys==='SR'?['h_lower = λ/(8sinθ) nominal',p.h_lo.toFixed(4)+' m']:
-              ['h₁ (Lower SBO) = λ/(4sinθ) nominal',p.h_lo.toFixed(4)+' m'],
-    ['Slope correction on h_lower',(sCorr>=0?'+':'')+sCorr.toFixed(4)+' m  (slope='+(sl*1000).toFixed(2)+' mm/m)'],
-    ['h_lower corrected',h_lo_c.toFixed(4)+' m'],
-    ...midRow,
-    sys!=='MA'?['h_upper = '+(sys==='NR'?'2':'3')+'×h_lower',h_hi_c.toFixed(4)+' m']:
-              ['h₃ (Upper SBO) = 3×h₁',h_hi_c.toFixed(4)+' m'],
-    ['— NF monitor —',''],
-    ['NF formula','h_lower × (h_lower + h_upper) / λ'],
-    ['h_lower × (h_lower + h_upper)',(h_lo_c*(h_lo_c+h_hi_c)).toFixed(4)+' m²'],
-    ['NF monitor distance',nf_dist.toFixed(3)+' m from mast'],
-    ['NF monitor elevation angle',sys==='SR'?'2θ = '+(2*tDeg).toFixed(1)+'°':'θ = '+tDeg.toFixed(1)+'°'],
-    ['NF monitor antenna height AGL',nf_height.toFixed(3)+' m at '+nf_dist.toFixed(0)+' m position'],
-    ['Fresnel zone radius at reflection',frR.toFixed(2)+' m'],
-    ['— RDH / TCH —',''],
-    ['RDH = (mastElev+h_lo−thrElev)+offset×tanθ',rdh.toFixed(4)+' m  ('+rdh_ft.toFixed(1)+' ft)'],
-    ['ICAO standard','15.0 m (50 ft) ± 3 m'],
-    ['RDH status',rdhOk?'✓ Within tolerance':rdhWarn?'⚠ Marginal — verify':'✗ Outside tolerance'],
-    ['Solution A: Required offset for RDH=15m',req_off.toFixed(1)+' m from THR  (change: '+(req_off-antOff>=0?'+':'')+(req_off-antOff).toFixed(1)+' m)'],
-    ['Sideways slope SSL at mast position',(ssl_raw*1000).toFixed(3)+' mm/m'],
-    ssl_nonzero!==null?['Solution B: Required C/L distance for RDH=15m',req_lat_abs+' m from C/L  (change: '+(req_lat_abs-antLat>=0?'+':'')+(req_lat_abs-antLat)+' m)']:['Solution B: C/L adjustment','SSL≈0 — lateral adjustment has negligible effect'],
-    ['— OCS —',''],
-    ['OCS surface angle θ+1.75°',(tDeg+1.75).toFixed(2)+'°'],
-    ['Violations (cells with data only)',viol.length+(ocsOk?' — clear':' — action required')],
-    ['— Author —',''],
-    ['Prepared by','Ayush Kaushik'],
-    ['Designation','AM (CNS), RCDU'],
-    ['Tool version','ILS GP Analyzer v10.0'],
-  ];
-  document.getElementById('paramTable').innerHTML=ps.filter(([k])=>k).map(([k,v])=>
-    k.startsWith('—')?`<tr class="sec-row"><td colspan="2">${k.replace(/—/g,'').trim()}</td></tr>`:
-    v?`<tr><td>${k}</td><td>${v}</td></tr>`:''
-  ).join('');
-
-  // ── ALERTS ──
-  const als=[{t:'info',m:`${sysNames[sys]} | NF monitor: ${nf_dist.toFixed(0)} m from mast at ${nf_height.toFixed(2)} m AGL${sys==='SR'?' (monitor at 2θ = '+(2*tDeg).toFixed(1)+'°)':''} | λ = ${p.lam.toFixed(4)} m | θ = ${tDeg}°`}];
-  if(!rdhOk){
-    let rdhMsg=`RDH = ${rdh.toFixed(2)} m (${rdh_ft.toFixed(0)} ft). ICAO standard 15 m ± 3 m.`;
-    rdhMsg+=` Solution A: move offset to ${Math.round(req_off)} m from THR.`;
-    if(ssl_nonzero!==null) rdhMsg+=` Solution B: move C/L distance to ${req_lat_abs} m (${req_lat_dir}).`;
-    als.push({t:rdhWarn?'warn':'err',m:rdhMsg});
-  }
-  if(!ocsOk) als.push({t:'err',m:`${viol.length} terrain point(s) penetrate ICAO OCS surface (θ+1.75° = ${(tDeg+1.75).toFixed(2)}°). Annex 10 §3.1.5 mitigation required.`});
-  if(Math.abs(sCorr)>0.15) als.push({t:'warn',m:`Terrain slope correction = ${(sCorr>=0?'+':'')+sCorr.toFixed(3)} m. Verify survey accuracy at reflection zone row ≈ −${Math.round(rD)} m.`});
-  if(rdhOk&&ocsOk) als.push({t:'ok',m:`All ICAO Annex 10 criteria satisfied. ${gpSide==='left'?'Left':'Right'} GP (${sysNamesShort[sys]}) at ${icao} RWY ${rwy} — site acceptable for installation.`});
-  document.getElementById('alertList').innerHTML=als.map(a=>`<div class="alert ${a.t}"><span class="alert-ico">${a.t==='ok'?'✓':a.t==='info'?'ℹ':a.t==='warn'?'⚠':'✗'}</span><span>${a.m}</span></div>`).join('');
-
-  // update topbar status
-  document.getElementById('sdot').className='sdot '+(ocsOk&&rdhOk?'ok':rdhWarn||!ocsOk?'warn':'err');
-  document.getElementById('stxt').textContent='Done — RDH='+rdh.toFixed(1)+'m NF='+nf_dist.toFixed(0)+'m OCS '+(ocsOk?'PASS':'FAIL');
-  document.getElementById('statusChip').textContent=ocsOk?'OCS PASS':'OCS FAIL';
-  document.getElementById('statusChip').style.borderColor=ocsOk?'var(--teal2)':'var(--red2)';
-  document.getElementById('statusChip').style.color=ocsOk?'var(--teal)':'var(--red)';
-  const rc=document.getElementById('rdhChip');
-  rc.textContent='RDH '+rdh.toFixed(1)+'m';
-  rc.style.borderColor=rdhOk?'var(--teal2)':rdhWarn?'var(--amber2)':'var(--red2)';
-  rc.style.color=rdhOk?'var(--teal)':rdhWarn?'var(--amber)':'var(--red)';
-
-  // draw charts
-  drawTerrain(antOff,mastRow,mastElev,h_lo_c,rD,nf_dist,p.theta,ocsA);
-  drawCalib(h_lo_c,p.lam,p.theta,nf_dist);
-  drawOCS(viol,ocsOk);
-
-  ['res','ter','cal'].forEach(x=>{
-    document.getElementById(x+'-empty').style.display='none';
-    document.getElementById(x+'-content').style.display='block';
-  });
-  goto('results');
-}
-
-// ════════════════════════════════════════════════════════
-//  CHARTS
-// ════════════════════════════════════════════════════════
-const chartDefaults={
-  scales:{
-    x:{type:'linear',grid:{color:'rgba(26,40,64,.8)'},
-      title:{display:true,text:'Distance from mast (m)',color:'#3d6a90',font:{size:10,family:'Share Tech Mono'}},
-      ticks:{color:'#3d6a90',font:{size:9,family:'Share Tech Mono'}}},
-    y:{grid:{color:'rgba(26,40,64,.8)'},
-      title:{display:true,color:'#3d6a90',font:{size:10,family:'Share Tech Mono'}},
-      ticks:{color:'#3d6a90',font:{size:9,family:'Share Tech Mono'}}}
-  },
-  responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}
-};
-
-function drawTerrain(antOff,mastRow,mastElev,h,rD,nfD,theta,ocsA){
-  if(tCI){tCI.destroy();tCI=null;}
-  const pts=[];
-  gridData.longDists.forEach(ld=>{
-    const dist=mastRow-ld;
-    if(dist<-20||dist>antOff*3) return;
-    const elev=gridData.rows[ld]?.[0];
-    if(elev!=null) pts.push({x:dist,y:elev});
-  });
-  pts.sort((a,b)=>a.x-b.x);
-  if(pts.length<2){
-    document.getElementById('ter-empty').style.display='block';
-    document.getElementById('ter-content').style.display='none';
-    return;
-  }
-  const mx=Math.max(...pts.map(p=>p.x))*1.02;
-  const gp=[],ocs=[];
-  for(let d=0;d<=mx;d+=20){
-    gp.push({x:d,y:parseFloat(((mastElev+h)-d*Math.tan(theta)).toFixed(3))});
-    ocs.push({x:d,y:parseFloat(((mastElev+h)-d*Math.tan(ocsA)).toFixed(3))});
-  }
-  const cfg=JSON.parse(JSON.stringify(chartDefaults));
-  cfg.scales.y.title.text='Elevation (m AMSL)';
-  tCI=new Chart(document.getElementById('tChart'),{type:'scatter',
-    data:{datasets:[
-      {data:pts,showLine:true,borderColor:'#12b880',backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.2},
-      {data:gp,showLine:true,borderColor:'#1e9cd8',borderDash:[8,4],borderWidth:1.5,pointRadius:0,backgroundColor:'transparent'},
-      {data:ocs,showLine:true,borderColor:'#c03030',borderDash:[4,4],borderWidth:1,pointRadius:0,backgroundColor:'transparent'},
-      {data:[{x:rD,y:getElev(mastRow-rD,0)}],pointRadius:7,pointBackgroundColor:'#d48820',borderColor:'#d48820',showLine:false},
-      {data:[{x:nfD,y:mastElev-1},{x:nfD,y:mastElev+h+5}],showLine:true,borderColor:'#7060d0',borderDash:[4,4],borderWidth:2,pointRadius:0,backgroundColor:'transparent'},
-      {data:[{x:antOff,y:mastElev-1},{x:antOff,y:mastElev+h+5}],showLine:true,borderColor:'#12b880',borderDash:[3,3],borderWidth:1,pointRadius:0,backgroundColor:'transparent'},
-    ]},options:cfg
-  });
-}
-
-function drawCalib(h,lam,theta,nfD){
-  if(cCI){cCI.destroy();cCI=null;}
-  const pts=[],lim=[];
-  for(let d=20;d<=18000;d+=60){
-    const k=(2*Math.PI)/lam;
-    // Before NF monitor: pattern inverted (negative DDM)
-    // At NF: zero crossing
-    // Beyond NF: positive DDM builds toward far-field value
-    let nfF;
-    if(d<nfD*0.5) nfF=-0.4*(d/(nfD*0.5));
-    else if(d<nfD) nfF=-0.4+0.4*((d-nfD*0.5)/(nfD*0.5));
-    else if(d<nfD*2.5) nfF=0.6+0.4*((d-nfD)/(nfD*1.5));
-    else nfF=1.0;
-    const ddm=0.0875*(1-Math.cos(k*h*Math.sin(theta)*2))*nfF*(1-Math.exp(-d/300));
-    pts.push({x:Math.round(d),y:parseFloat((ddm*100).toFixed(4))});
-    lim.push({x:Math.round(d),y:8.75});
-  }
-  const cfg=JSON.parse(JSON.stringify(chartDefaults));
-  cfg.scales.y.title.text='DDM (%)';
-  cCI=new Chart(document.getElementById('cChart'),{type:'scatter',
-    data:{datasets:[
-      {data:pts,showLine:true,borderColor:'#1e9cd8',borderWidth:2,pointRadius:0,backgroundColor:'transparent'},
-      {data:[{x:20,y:0},{x:18000,y:0}],showLine:true,borderColor:'#c03030',borderDash:[5,4],borderWidth:1,pointRadius:0,backgroundColor:'transparent'},
-      {data:lim,showLine:true,borderColor:'#d48820',borderDash:[3,3],borderWidth:1,pointRadius:0,backgroundColor:'transparent'},
-      {data:[{x:nfD,y:-12},{x:nfD,y:13}],showLine:true,borderColor:'#7060d0',borderDash:[4,4],borderWidth:2,pointRadius:0,backgroundColor:'transparent'},
-    ]},options:cfg
-  });
-}
-
-function drawOCS(viol,ok){
-  const el=document.getElementById('ocsList');
-  if(ok){
-    el.innerHTML='<div class="alert ok"><span class="alert-ico">✓</span><span>No terrain points penetrate ICAO OCS. Full Annex 10 compliance confirmed for this profile.</span></div>';
-    return;
-  }
-  el.innerHTML=`<div class="alert err" style="margin-bottom:8px"><span class="alert-ico">✗</span><span>${viol.length} point(s) penetrate OCS — ICAO Annex 10 §3.1.5 mitigation required.</span></div>`
-    +viol.slice(0,30).map(v=>`<div class="ocs-item"><span style="color:var(--tx3);font-family:var(--sans)">Row ${v.ld} m (${v.dist} m from mast) — ${v.elev} m AMSL</span><span class="badge b-err">+${v.excess} m</span></div>`).join('')
-    +(viol.length>30?`<div style="font-size:9px;color:var(--tx4);text-align:center;margin-top:6px">… and ${viol.length-30} more violations</div>`:'');
-}
-
-function showTab(n){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['params','ocs'][i]===n));
-  document.querySelectorAll('.tpane').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-'+n).classList.add('active');
-}
-
-// ════════════════════════════════════════════════════════
-//  VALIDATION TABLE
-// ════════════════════════════════════════════════════════
-function buildValidation(){
-  const cases=[
-    {s:'NR',f:329,t:3.0},{s:'NR',f:332,t:3.0},{s:'NR',f:335,t:3.0},
-    {s:'NR',f:332,t:3.5},{s:'NR',f:332,t:4.0},
-    {s:'SR',f:329,t:3.0},{s:'SR',f:332,t:3.0},{s:'SR',f:335,t:3.0},
-    {s:'SR',f:332,t:3.5},
-    {s:'MA',f:329,t:3.0},{s:'MA',f:332,t:3.0},{s:'MA',f:335,t:3.0},
-    {s:'MA',f:332,t:2.5},{s:'MA',f:332,t:3.5},{s:'MA',f:332,t:4.0},
-  ];
-  const sn={NR:'0-Ref',SR:'SB-Ref',MA:'M-Array'};
-  const sc={NR:'g',SR:'b',MA:'a'};
-  document.getElementById('vtbody').innerHTML=cases.map(c=>{
-    const p=antParams(c.s,c.f,c.t);
-    // RDH at 300m offset, flat terrain (mastElev=thrElev)
-    const rdh=p.h_lo+300*p.tanT;
-    const rdh_ft=rdh*3.281;
-    const rdhOk=rdh>=14&&rdh<=18;
-    const midStr=p.h_mid!=null?p.h_mid.toFixed(3):'—';
-    return `<tr>
-      <td class="${sc[c.s]}">${sn[c.s]}</td>
-      <td class="b">${c.f}</td><td>${c.t}</td><td>${p.lam.toFixed(4)}</td>
-      <td class="t">${p.h_lo.toFixed(3)}</td>
-      <td>${midStr}</td>
-      <td>${p.h_hi.toFixed(3)}</td>
-      <td class="p">${p.nf_dist.toFixed(1)}</td>
-      <td>${p.nf_height.toFixed(2)}</td>
-      <td style="color:${rdhOk?'var(--teal)':'var(--amber)'}">${rdh.toFixed(2)}</td>
-      <td style="color:${rdhOk?'var(--teal)':'var(--amber)'}">${rdh_ft.toFixed(0)}</td>
-    </tr>`;
-  }).join('');
-}
-
-// ════════════════════════════════════════════════════════
-//  EXPORT CSV
-// ════════════════════════════════════════════════════════
-function exportReport(){
-  if(!gridData){alert('Run analysis first.');return;}
-  const icao=document.getElementById('icao').value||'XX';
-  const rwy=document.getElementById('rwy').value||'00';
-  const freq=parseFloat(document.getElementById('freq').value);
-  const glide=parseFloat(document.getElementById('glide').value);
-  const antOff=parseInt(document.getElementById('antOff').value);
-  const antLat=parseInt(document.getElementById('antLat').value);
-  const sys=document.getElementById('antSystem').value;
-  const p=antParams(sys,freq,glide);
-  const mastElev=getElev(-antOff,antLat);
-  const thrGE=getElev(0,0);
-  const rdh=(mastElev+p.h_lo-thrGE+antOff*p.tanT).toFixed(2);
-  const sysNames={MA:'M-Array/Capture Effect',NR:'Null Reference (0-Ref)',SR:'Sideband Reference'};
-  let csv=[
-    'ILS GP ANALYZER v10.0',
-    'Prepared by: Ayush Kaushik, AM (CNS), RCDU',
-    'Generated: '+new Date().toISOString().slice(0,19).replace('T',' '),
-    '',
-    'STATION',
-    'Airport: '+icao,'Runway: '+rwy,'GP side: '+gpSide,
-    'Antenna system: '+sysNames[sys],
-    'Offset from THR: '+antOff+' m','Lateral from C/L: '+antLat+' m',
-    'Frequency: '+freq+' MHz','Glide angle: '+glide+'°',
-    'Threshold elevation: '+getThr()+' m AMSL',
-    '',
-    'ANTENNA HEIGHTS (above mast base — corrected for terrain slope)',
-    sys==='NR'?'h_lower (CSB+SBO): '+p.h_lo.toFixed(3)+' m':
-    sys==='SR'?'h_lower (CSB+SBO anti-phase): '+p.h_lo.toFixed(3)+' m':
-              'h1 (Lower SBO): '+p.h_lo.toFixed(3)+' m',
-    ...(p.h_mid!=null?['h2 (Middle CSB): '+p.h_mid.toFixed(3)+' m']:[]),
-    sys!=='MA'?'h_upper (SBO): '+p.h_hi.toFixed(3)+' m':'h3 (Upper SBO): '+p.h_hi.toFixed(3)+' m',
-    '',
-    'NF MONITOR (formula: h_lower x (h_lower + h_upper) / lambda)',
-    'NF monitor distance: '+p.nf_dist.toFixed(2)+' m from mast',
-    'NF monitor antenna height: '+p.nf_height.toFixed(3)+' m AGL at '+p.nf_dist.toFixed(0)+'m position',
-    sys==='SR'?'Note: SR monitor elevation angle = 2x glide = '+(2*glide).toFixed(1)+'°':'',
-    '',
-    'RDH / TCH',
-    'RDH: '+rdh+' m  (ICAO standard: 15.0 m +/- 3 m)',
-    'Solution A - Required offset for RDH=15m: '+reqOff(15,mastElev,p.h_lo,p.theta,thrGE).toFixed(1)+' m from THR',
-    'Sideways slope SSL at mast position: '+(sslAt(-antOff,antLat)*1000).toFixed(3)+' mm/m',
-    (()=>{const ssl=sslAt(-antOff,antLat);if(Math.abs(ssl)<0.0001)return 'Solution B - C/L adjustment: SSL~0 - lateral adjustment not effective';
-      const dRDH=15-(parseFloat(rdh)); const dLat=dRDH/ssl; const nLat=Math.round(Math.min(150,Math.max(10,antLat+dLat)));
-      return 'Solution B - Required C/L distance for RDH=15m: '+nLat+' m from C/L (change '+(dLat>=0?'+':'')+dLat.toFixed(1)+' m)';})(),
-    '',
-    'GROUND PROFILE','Row(m),Lat(m),Elev(m AMSL)'
-  ].filter(l=>l!==undefined);
-  gridData.longDists.forEach(ld=>gridData.latDists.forEach(la=>{
-    const v=gridData.rows[ld]?.[la];
-    if(v!=null) csv.push(`${ld},${la},${v}`);
-  }));
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv.join('\n')],{type:'text/csv'}));
-  a.download=`GP_${icao}_${rwy}_${gpSide}_${sys}_v10.csv`;
-  a.click();
-}
-
-// ════════════════════════════════════════════════════════
-//  RESET
-// ════════════════════════════════════════════════════════
-function resetAll(){
-  gridData=null;
-  document.getElementById('dpill').className='pill';
-  document.getElementById('dtxt').textContent='No file loaded';
-  document.getElementById('nb-up').textContent='—';
-  document.getElementById('sdot').className='sdot';
-  document.getElementById('stxt').textContent='Awaiting input';
-  ['statusChip','rdhChip'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.textContent=id==='statusChip'?'No data':'RDH —';
-    el.style.borderColor='var(--bdr3)'; el.style.color='var(--tx3)';
-  });
-  ['lb-elev','lb-rdh','lb-nf','lb-nfh'].forEach(id=>document.getElementById(id).textContent='—');
-  document.getElementById('dqBox').style.display='none';
-  document.getElementById('prevEmpty').style.display='block';
-  document.getElementById('prevBlock').style.display='none';
-  ['res','ter','cal'].forEach(x=>{
-    document.getElementById(x+'-empty').style.display='block';
-    document.getElementById(x+'-content').style.display='none';
-  });
-  if(tCI){tCI.destroy();tCI=null;}
-  if(cCI){cCI.destroy();cCI=null;}
-  // reset custom profile
-  custMeta=null;
-  const cgs=document.getElementById('cust-grid-section');
-  if(cgs) cgs.style.display='none';
-  const cst=document.getElementById('cust-status');
-  if(cst) cst.textContent='';
-  const cgsz=document.getElementById('cust-gridsize');
-  if(cgsz) cgsz.textContent='';
-  const nbCustom=document.getElementById('nb-custom');
-  if(nbCustom){nbCustom.textContent='NEW';nbCustom.style.background='rgba(18,184,128,.12)';nbCustom.style.borderColor='var(--teal2)';nbCustom.style.color='var(--teal)';}
-  goto('setup');
-}
-
-// ── INIT ──
-setSide('left');
-liveUpdate();
-
-// Resize charts on window resize
-window.addEventListener('resize',()=>{
-  if(tCI) tCI.resize();
-  if(cCI) cCI.resize();
-});
+initCharts();buildAntTable(48);doUpdate();
 </script>
 </body>
 </html>

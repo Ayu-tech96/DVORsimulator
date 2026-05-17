@@ -606,7 +606,7 @@ function buildTimeDomain(p,res,rxAz){
     const {dr}=antErr[n];
     pathSum+=k*(R+dr)*Math.cos(rxAz*D2R-phi_n[n]);
   }
-  const encPhase=(pathSum/N);   // radians — the azimuth-encoded phase
+  const encPhase=(pathSum/N);   // radians — the azimuth-encoded phasee
 
   // Obstruction effect at rxAz
   const {amp:oAmp}=obsLoss(rxAz,p,lam);

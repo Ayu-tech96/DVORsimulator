@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DVOR Simulator v6</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ═══ RESET & TOKENS ═══ */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090e;--bg2:#0d1520;--bg3:#131e30;--bg4:#192840;--bg5:#1e3050;
+  --bdr:#192840;--bdr2:#243858;--bdr3:#304870;
+  --tx:#ccddf0;--tx2:#6888aa;--tx3:#364e66;
+  --blue:#2474c8;--teal:#16966a;--amber:#c07808;--red:#b83030;--green:#4a9010;
+  --fok:#16966a;--fwarn:#c07808;--ferr:#b83030;
+  /* fluid sizing */
+  --pad:clamp(7px,1.4vw,14px);
+  --gap:clamp(5px,0.9vw,10px);
+  --fs:clamp(10px,1vw,12px);
+  --fs-sm:clamp(9px,.88vw,11px);
+  --fs-xs:clamp(8px,.78vw,10px);
+  --fs-lg:clamp(14px,1.6vw,20px);
+  --lp-w:clamp(230px,22vw,290px);
+  --ring:clamp(160px,17vw,230px);
+}
+html{overflow-x:hidden}
+body{background:var(--bg);color:var(--tx);font-family:'Courier New',monospace;font-size:var(--fs);padding:var(--pad);min-height:100vh;overflow-x:hidden}
+
+/* ── topbar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;padding-bottom:var(--gap);margin-bottom:var(--gap);border-bottom:1px solid var(--bdr2)}
+.topbar h1{font-size:var(--fs-xs);letter-spacing:.14em;text-transform:uppercase;color:var(--tx2);flex-shrink:1;min-width:0}
+.badges{display:flex;gap:3px;flex-wrap:wrap}
+.badge{font-size:var(--fs-xs);padding:2px 6px;border-radius:3px;background:var(--bg3);border:1px solid var(--bdr2);color:var(--tx3);white-space:nowrap}
+.badge.live{color:var(--teal);border-color:var(--teal)}
+
+/* ── root ── */
+.root{display:grid;grid-template-columns:var(--lp-w) minmax(0,1fr);gap:var(--gap);align-items:start;width:100%}
+
+/* ── left panel ── */
+.lp{background:var(--bg2);border:1px solid var(--bdr2);border-radius:6px;padding:var(--pad);position:sticky;top:var(--pad);max-height:calc(100vh - 2*var(--pad) - 52px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
+.slbl{font-size:var(--fs-xs);font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--tx3);margin:9px 0 4px;padding-bottom:2px;border-bottom:1px solid var(--bdr)}
+.slbl:first-child{margin-top:0}
+.cr{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.cr label{font-size:var(--fs-sm);color:var(--tx2);flex:0 0 44%;min-width:0;line-height:1.3}
+.cr input[type=range]{flex:1;min-width:0;accent-color:var(--blue);cursor:pointer;height:3px}
+.vv{font-size:var(--fs-sm);font-weight:700;min-width:56px;text-align:right;color:var(--tx);font-family:'Courier New',monospace;flex-shrink:0}
+.cr select{flex:1;min-width:0;font-size:var(--fs-sm);padding:2px 3px;border-radius:3px;border:1px solid var(--bdr2);background:var(--bg3);color:var(--tx)}
+.tr{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.tr label{font-size:var(--fs-sm);color:var(--tx2);flex:1;cursor:pointer;min-width:0}
+.tr input[type=checkbox]{accent-color:var(--blue);cursor:pointer;flex-shrink:0;width:12px;height:12px}
+/* info box */
+.info{font-size:var(--fs-xs);color:var(--tx3);padding:3px 6px 4px;line-height:1.55;border-left:2px solid var(--bdr2);margin-bottom:4px}
+.info b{color:var(--tx2)}
+/* read-only row */
+.ro{display:flex;align-items:center;gap:4px;margin-bottom:4px;background:var(--bg3);border-radius:3px;padding:3px 6px;border:1px solid var(--bdr)}
+.ro-l{font-size:var(--fs-xs);color:var(--tx3);flex:1;min-width:0}
+.ro-v{font-size:var(--fs-sm);font-weight:700;color:var(--teal);font-family:'Courier New',monospace;white-space:nowrap}
+/* metrics */
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px}
+.mc{background:var(--bg3);border-radius:4px;padding:6px 8px;border:1px solid var(--bdr);min-width:0;overflow:hidden}
+.ml{font-size:var(--fs-xs);letter-spacing:.07em;text-transform:uppercase;color:var(--tx3);margin-bottom:2px}
+.mv{font-size:var(--fs-lg);font-weight:700;color:var(--tx);font-family:'Courier New',monospace;line-height:1.1;word-break:break-all}
+.mu{font-size:var(--fs-xs);color:var(--tx3);margin-left:1px}
+.mc.ok .mv{color:var(--teal)}.mc.warn .mv{color:var(--amber)}.mc.err .mv{color:var(--red)}
+.stbar{margin-top:6px;padding:5px 8px;border-radius:4px;font-size:var(--fs-xs);line-height:1.6;background:var(--bg3);border-left:3px solid var(--blue);color:var(--tx2);word-break:break-word}
+.stbar.warn{border-left-color:var(--amber);color:var(--amber)}
+.stbar.err{border-left-color:var(--red);color:var(--red)}
+/* antenna table */
+.aet{width:100%;border-collapse:collapse;font-size:var(--fs-xs);table-layout:fixed}
+.aet th{background:var(--bg4);color:var(--tx3);padding:2px 3px;border:1px solid var(--bdr2);text-align:center;overflow:hidden}
+.aet td{padding:2px 3px;border:1px solid var(--bdr);text-align:center;color:var(--tx2);overflow:hidden}
+.aet input[type=number]{width:100%;max-width:50px;background:var(--bg4);border:1px solid var(--bdr2);color:var(--tx);padding:1px 2px;border-radius:2px;font-family:'Courier New',monospace;font-size:var(--fs-xs);text-align:right}
+.aet-wrap{max-height:170px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--bdr);border-radius:3px;margin-top:3px;width:100%}
+
+/* ── right ── */
+.right{display:flex;flex-direction:column;gap:var(--gap);min-width:0;overflow:hidden;width:100%}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);width:100%}
+
+/* chart card */
+.vc{background:var(--bg2);border:1px solid var(--bdr2);border-radius:6px;padding:var(--pad);min-width:0;overflow:hidden;width:100%}
+/* chart header */
+.vh{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+.vt{font-size:var(--fs-sm);font-weight:700;color:var(--tx);line-height:1.3;flex:1;min-width:0}
+.vpill{font-size:var(--fs-xs);padding:2px 7px;border-radius:10px;border:1px solid;white-space:nowrap;flex-shrink:0}
+.vpill.ok{color:var(--teal);border-color:var(--teal)}
+.vpill.warn{color:var(--amber);border-color:var(--amber)}
+.vpill.err{color:var(--red);border-color:var(--red)}
+/* grey description box */
+.vd{font-size:var(--fs-xs);color:var(--tx3);margin-bottom:5px;padding:3px 6px;background:var(--bg3);border-radius:3px;line-height:1.5;border-left:2px solid var(--bdr2)}
+.vd b{color:var(--tx2)}.vd .ok{color:var(--teal)}.vd .warn{color:var(--amber)}.vd .err{color:var(--red)}
+.ch{position:relative;width:100%}
+canvas.ch-c{display:block;width:100%!important}
+
+/* ICAO band key */
+.band-key{display:flex;gap:10px;flex-wrap:wrap;margin-top:3px}
+.band-key span{font-size:var(--fs-xs);color:var(--tx3);display:flex;align-items:center;gap:3px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+/* section tabs */
+.tabs{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:var(--gap)}
+.tab{font-size:var(--fs-xs);padding:3px 10px;border-radius:3px;border:1px solid var(--bdr2);background:var(--bg3);color:var(--tx3);cursor:pointer;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;transition:background .15s}
+.tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.tabp{display:none}.tabp.on{display:flex;flex-direction:column;gap:var(--gap)}
+
+/* anim controls */
+.animbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px}
+.animbar button{font-size:var(--fs-xs);padding:3px 9px;border-radius:3px;border:1px solid var(--bdr2);background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:'Courier New',monospace}
+.animbar button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.animbar select{font-size:var(--fs-xs);padding:2px;background:var(--bg3);border:1px solid var(--bdr2);color:var(--tx);border-radius:3px}
+.animlbl{font-size:var(--fs-xs);color:var(--tx3);font-family:'Courier New',monospace}
+
+/* scope legend */
+.leg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.leg span{font-size:var(--fs-xs);color:var(--tx3);display:flex;align-items:center;gap:3px}
+
+/* NAV panel */
+.nav-panel{display:grid;grid-template-columns:var(--ring) minmax(0,1fr);gap:var(--gap);align-items:start;overflow:hidden;width:100%}
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+#c-ring{display:block;max-width:100%}
+.fmi-wrap{overflow-y:auto;overflow-x:hidden;max-height:clamp(160px,26vh,290px);border:1px solid var(--bdr);border-radius:3px;width:100%;min-width:0}
+.fmi-tbl{width:100%;border-collapse:collapse;font-size:var(--fs-xs);table-layout:fixed}
+.fmi-tbl th{background:var(--bg4);color:var(--tx3);padding:3px 4px;border:1px solid var(--bdr2);position:sticky;top:0;z-index:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fmi-tbl td{padding:3px 4px;border:1px solid var(--bdr);text-align:right;font-family:'Courier New',monospace;overflow:hidden}
+.fmi-tbl td:first-child{text-align:center;color:var(--tx3)}
+.fmi-tbl tr.r-ok td{background:rgba(22,150,106,.07)}
+.fmi-tbl tr.r-warn td{background:rgba(192,120,8,.09)}
+.fmi-tbl tr.r-err td{background:rgba(184,48,48,.12)}
+
+/* responsive */
+@media(max-width:900px){
+  :root{--lp-w:100%}
+  .root{grid-template-columns:1fr}
+  .lp{position:static;max-height:none}
+}
+@media(max-width:600px){
+  :root{--pad:7px;--gap:5px;--fs:10px;--fs-sm:9px;--fs-xs:8px;--ring:min(68vw,210px)}
+  .row2{grid-template-columns:1fr}
+  .nav-panel{grid-template-columns:1fr}
+  .lp{position:static;max-height:none}
+}
+@media(min-width:1400px){
+  :root{--lp-w:305px;--ring:245px}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>DVOR Professional Simulator v6 — Correct Doppler Array Physics</h1>
+  <div class="badges">
+    <span class="badge" id="b-f">113.80 MHz</span>
+    <span class="badge" id="b-l">λ=2.6344m</span>
+    <span class="badge" id="b-r">R=6.708m</span>
+    <span class="badge" id="b-n">N=48</span>
+    <span class="badge live" id="b-anim">⏸ PAUSED</span>
+  </div>
+</div>
+
+<div class="root">
+<!-- ═══ LEFT PANEL ═══ -->
+<div class="lp">
+
+  <div class="slbl">Carrier &amp; Array</div>
+  <div class="cr"><label>Carrier freq (MHz)</label>
+    <input type="range" id="freq" min="108" max="117.95" step="0.05" value="113.80">
+    <span class="vv" id="vv-f">113.80</span></div>
+  <div class="cr"><label>No. of dipoles N</label>
+    <select id="ndip">
+      <option value="12">12</option><option value="24">24</option>
+      <option value="48" selected>48 (ICAO std)</option><option value="96">96</option>
+    </select></div>
+  <div class="ro">
+    <span class="ro-l">Array radius R = 8λ/π (ICAO)</span>
+    <span class="ro-v" id="ro-r">6.708 m</span>
+  </div>
+  <div class="info"><b>R = 8λ/π</b> ensures k·R = 16 exactly → Doppler deviation = 480 Hz → FMI = 16.000 nominal. Auto-computed from frequency.</div>
+
+  <div class="slbl">Fault Simulation</div>
+  <div class="cr"><label>Sideband amplitude A</label>
+    <input type="range" id="sb" min="0.05" max="1.00" step="0.005" value="1.000">
+    <span class="vv" id="vv-sb">1.000</span></div>
+  <div class="info"><b>A = 1.0 → FMI = 16.000.</b> Reduce to simulate under-driven sideband TX: FMI drops uniformly at all azimuths.</div>
+  <div class="cr"><label>Ref mod depth m₀</label>
+    <input type="range" id="rm" min="0.05" max="0.50" step="0.001" value="0.302">
+    <span class="vv" id="vv-rm">0.302</span></div>
+  <div class="info"><b>ICAO nominal 0.30.</b> Drift in m₀ shifts FMI reference line → systematic bearing offset across all azimuths.</div>
+  <div class="cr"><label>Counterpoise ht (m AGL)</label>
+    <input type="range" id="cph" min="0.1" max="1.5" step="0.05" value="0.45">
+    <span class="vv" id="vv-cph">0.45m</span></div>
+  <div class="info"><b>Counterpoise (ground plane):</b> measured from natural ground (AGL). Typically 0.3–0.5 m AGL. This is the physical ground-plane disc the DVOR sits on.</div>
+  <div class="cr"><label>TX ht above counterpoise (m)</label>
+    <input type="range" id="txh" min="0.3" max="3.0" step="0.05" value="0.75">
+    <span class="vv" id="vv-txh">0.75m</span></div>
+  <div class="info"><b>TX height is measured above the counterpoise</b>, not from the ground. Actual dipole AGL = counterpoise AGL + TX height above counterpoise. Typical: counterpoise 0.45m + TX above c/p 0.75m = <b id="total-tx-ht">1.20m</b> AGL total. Used in knife-edge diffraction.</div>
+
+  <div class="slbl">Per-Antenna Errors (ΔR &amp; Δφ)</div>
+  <div class="tr"><label>Enable per-antenna errors</label><input type="checkbox" id="ant-en"></div>
+  <div class="cr"><label>Quick preset</label>
+    <select id="preset" onchange="applyPreset()">
+      <option value="none">All nominal</option>
+      <option value="r1">Ant#0: ΔR=+0.30m</option>
+      <option value="r2">Ant#0: ΔR=−0.20m</option>
+      <option value="a1">Ant#0: Δφ=+3.0°</option>
+      <option value="two">Multi-antenna combined</option>
+      <option value="rand">Random mfg tolerances</option>
+    </select></div>
+  <div id="aet-wrap" style="display:none">
+    <div style="font-size:var(--fs-xs);color:var(--tx3);margin:3px 0">ΔR = radial offset from nominal R &nbsp;|&nbsp; Δφ = angular position error</div>
+    <div class="aet-wrap"><table class="aet">
+      <thead><tr><th>#</th><th>ΔR(m)</th><th>Δφ(°)</th><th>Effect</th></tr></thead>
+      <tbody id="aet-body"></tbody>
+    </table></div>
+  </div>
+
+  <div class="slbl">Obstruction — ITU-R P.526</div>
+  <div class="tr"><label>Enable obstruction</label><input type="checkbox" id="obs-en"></div>
+  <div class="cr"><label>Tip height (m AGL)</label>
+    <input type="range" id="obs-h" min="0.5" max="60" step="0.5" value="10">
+    <span class="vv" id="vv-oh">10.0m</span></div>
+  <div class="info" style="margin-bottom:3px">All obstruction heights are <b>from natural ground (AGL)</b>, same reference as the site survey.</div>
+  <div class="cr"><label>Distance from ctr (m)</label>
+    <input type="range" id="obs-d" min="5" max="800" step="5" value="150">
+    <span class="vv" id="vv-od">150m</span></div>
+  <div class="cr"><label>Azimuth (°M)</label>
+    <input type="range" id="obs-az" min="0" max="359" step="1" value="90">
+    <span class="vv" id="vv-oaz">090°</span></div>
+  <div class="cr"><label>Width (m)</label>
+    <input type="range" id="obs-w" min="1" max="100" step="1" value="15">
+    <span class="vv" id="vv-ow">15m</span></div>
+  <div class="info">
+    Dipole AGL = <b id="tx-agl">1.20m</b> &nbsp;|&nbsp;
+    h_eff = obs_tip − dipole_AGL = <b id="eff-obs">8.8m</b><br>
+    Fresnel v = <b id="vv-fresnel">—</b> &nbsp;|&nbsp; Diffraction loss = <b id="vv-dloss">—</b> dB
+  </div>
+
+  <div class="slbl">RF Receiver</div>
+  <div class="cr"><label>Rx azimuth (°)</label>
+    <input type="range" id="rxaz" min="0" max="359" step="1" value="90">
+    <span class="vv" id="vv-rxaz">090°</span></div>
+  <div class="cr"><label>Scope window (ms)</label>
+    <input type="range" id="twin" min="5" max="200" step="5" value="50">
+    <span class="vv" id="vv-twin">50ms</span></div>
+
+  <div class="slbl">Display</div>
+  <div class="tr"><label>Show ideal reference</label><input type="checkbox" id="showref" checked></div>
+  <div class="tr"><label>Normalize polar</label><input type="checkbox" id="norm" checked></div>
+  <div class="cr"><label>Table step (°)</label>
+    <select id="tstep"><option value="1">1°</option><option value="5">5°</option>
+      <option value="10" selected>10°</option><option value="30">30°</option></select></div>
+
+  <div class="mg">
+    <div class="mc" id="mc0"><div class="ml">FMI avg</div><div class="mv" id="mv0">—</div></div>
+    <div class="mc" id="mc1"><div class="ml">FMI ref (m₀)</div><div class="mv" id="mv1">—</div></div>
+    <div class="mc" id="mc2"><div class="ml">FMI min/max</div><div class="mv" id="mv2" style="font-size:clamp(10px,1.1vw,13px);line-height:1.5">—</div></div>
+    <div class="mc" id="mc3"><div class="ml">Max brg err</div><div class="mv" id="mv3">—<span class="mu">°</span></div></div>
+    <div class="mc" id="mc4"><div class="ml">Freq dev (avg)</div><div class="mv" id="mv4">—<span class="mu">Hz</span></div></div>
+    <div class="mc" id="mc5"><div class="ml">FMI ratio v/r</div><div class="mv" id="mv5">—</div></div>
+  </div>
+  <div class="stbar" id="stbar">Initialising...</div>
+</div>
+
+<!-- ═══ RIGHT ═══ -->
+<div class="right">
+  <div class="tabs">
+    <div class="tab on"  onclick="switchTab(this,'array')">Array &amp; Pattern</div>
+    <div class="tab"     onclick="switchTab(this,'rf')">RF Time-Domain</div>
+    <div class="tab"     onclick="switchTab(this,'spectrum')">Spectrum (FFT)</div>
+    <div class="tab"     onclick="switchTab(this,'nav')">NAV Analyzer</div>
+  </div>
+
+  <!-- ══ ARRAY & PATTERN ══ -->
+  <div class="tabp on" id="tab-array">
+    <div class="row2">
+      <!-- POLAR -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">Radiation Pattern (Polar)</div>
+          <span class="vpill ok" id="pill-polar">Circular ✓</span>
+        </div>
+        <div class="vd">
+          <b>What it shows:</b> Amplitude of the sideband array output in every direction.
+          <b>Ideal:</b> <span class="ok">perfect circle</span> — DVOR encodes bearing in <b>phase, not amplitude</b>.
+          A distorted circle means antenna position errors or obstruction are present.
+          The <span class="err">red line</span> = current electronic rotation during ANIMATE mode.
+        </div>
+        <div class="animbar">
+          <button id="btn-anim" onclick="toggleAnim()">▶ ANIMATE</button>
+          <span style="font-size:var(--fs-xs);color:var(--tx3)">Speed:</span>
+          <select id="anim-spd"><option value="0.3">0.3×</option><option value="1" selected>1×</option>
+            <option value="3">3×</option><option value="10">10×</option><option value="30">30×</option></select>
+          <span class="animlbl" id="anim-angle">θ = 000°</span>
+        </div>
+        <div class="ch" style="height:clamp(190px,22vh,260px)"><canvas id="c-polar" class="ch-c" role="img" aria-label="Polar pattern"></canvas></div>
+      </div>
+      <!-- FMI STRIP -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">FMI vs Azimuth — Flight Inspection Strip</div>
+          <span class="vpill ok" id="pill-fmi">FMI OK</span>
+        </div>
+        <div class="vd">
+          <b>FMI = Δf / f_rot = 480 Hz / 30 Hz = <span class="ok">16.000 nominal</span>.</b>
+          <b>ICAO Annex 10 tolerance: <span class="ok">15.000 – 17.000</span></b> (red dashed lines).
+          A dip below 15 at any azimuth = that bearing is out-of-tolerance at the aircraft.
+          Orange dashed = reference FMI from m₀.
+        </div>
+        <div class="ch" style="height:clamp(190px,22vh,260px)"><canvas id="c-strip" class="ch-c" role="img" aria-label="FMI strip"></canvas></div>
+      </div>
+    </div>
+    <div class="row2">
+      <!-- PHASE -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">Signal Phase vs Azimuth</div>
+          <span class="vpill ok" id="pill-phase">Phase OK</span>
+        </div>
+        <div class="vd">
+          <b>What it shows:</b> The <b>bearing error introduced by antenna/obstruction errors</b> — expressed as a phase error in degrees.
+          <b>For a perfect array this is a flat line at 0°.</b>
+          This is NOT the raw atan2 of the array factor — it is the correct Doppler model:
+          phase_err(θ) = (1/N) Σ k·Δrₙ·cos(θ − φₙ).
+          <b>ICAO: ≤ ±1° site acceptance.</b>
+        </div>
+        <div class="ch" style="height:clamp(150px,17vh,200px)"><canvas id="c-phase" class="ch-c" role="img" aria-label="Phase error"></canvas></div>
+      </div>
+      <!-- BEARING ERROR -->
+      <div class="vc">
+        <div class="vh">
+          <div class="vt">Bearing Error vs Azimuth</div>
+          <span class="vpill ok" id="pill-err">Brg OK</span>
+        </div>
+        <div class="vd">
+          <b>Bearing error = phase error converted to degrees</b> (same data, clearer scale).
+          <span class="ok">Green band ±1°</span> = ICAO site acceptance.
+          <span class="warn">Amber ±0.5°</span> = preferred.
+          <span class="err">Red ±2°</span> = CAT I absolute limit.
+          Perfect array = zero line. Antenna ΔR = sinusoidal, Δφ = spike at that antenna's azimuth.
+        </div>
+        <div class="ch" style="height:clamp(150px,17vh,200px)"><canvas id="c-err" class="ch-c" role="img" aria-label="Bearing error"></canvas></div>
+      </div>
+    </div>
+    <!-- PLAN VIEW -->
+    <div class="vc">
+      <div class="vt" style="margin-bottom:4px">Array Layout — Plan View (North Up, to scale)</div>
+      <div class="vd">
+        <b>Blue dots</b> = sideband dipoles at R = 8λ/π.
+        <b>Orange dot</b> = centre carrier antenna.
+        <b>Red dots</b> = antennas with position errors (displacement line to nominal).
+        <b>Red bar</b> = obstruction with shadow cone (affected azimuth sector).
+        Scale bar = 1 wavelength.
+      </div>
+      <div class="ch" style="height:clamp(160px,19vh,220px)"><canvas id="c-top" class="ch-c" role="img" aria-label="Plan view"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ══ RF TIME-DOMAIN ══ -->
+  <div class="tabp" id="tab-rf">
+    <div class="vc">
+      <div class="vh">
+        <div class="vt">Composite RF Signal — Oscilloscope</div>
+        <span class="animlbl" id="scope-title">@ Rx 090°</span>
+      </div>
+      <div class="vd">
+        <b>DVOR composite signal:</b> s(t) = 1 + m₀·cos(2π·30t) + A·E_amp·cos(2π·9960·t + φ_FM).
+        The aircraft receiver demodulates this to extract the 30 Hz AM reference (amber) and the 9960 Hz FM subcarrier (green), then measures their phase difference to read the bearing.
+        Adjust <b>Rx azimuth</b> or press <b>▶ ANIMATE</b> on the pattern tab.
+      </div>
+      <div class="leg">
+        <span><span class="dot" style="background:#2474c8"></span>Composite envelope</span>
+        <span><span class="dot" style="background:#16966a"></span>9960 Hz FM subcarrier</span>
+        <span><span class="dot" style="background:#c07808"></span>30 Hz AM reference</span>
+      </div>
+      <div class="ch" style="height:clamp(170px,20vh,240px)"><canvas id="c-scope" class="ch-c" role="img" aria-label="Oscilloscope"></canvas></div>
+    </div>
+    <div class="row2">
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">9960 Hz FM Subcarrier — Detail</div>
+        <div class="vd">The FM subcarrier whose instantaneous frequency swings between <b>9480 Hz and 10440 Hz</b> (±480 Hz at 30 Hz rate). The <b>phase of this FM at the 30 Hz reference zero-crossing encodes the receiver azimuth.</b></div>
+        <div class="ch" style="height:clamp(140px,16vh,190px)"><canvas id="c-fm" class="ch-c" role="img" aria-label="FM subcarrier"></canvas></div>
+      </div>
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">VAR − REF Phase Difference = Encoded Bearing</div>
+        <div class="vd">The aircraft VOR receiver extracts this phase difference. <b>Ideal: a flat line equal to the receiver azimuth (°).</b> Wobble or drift = bearing error. Obstruction causes a periodic dip at the affected azimuth.</div>
+        <div class="ch" style="height:clamp(140px,16vh,190px)"><canvas id="c-phdiff" class="ch-c" role="img" aria-label="Phase difference"></canvas></div>
+      </div>
+    </div>
+    <div class="vc">
+      <div class="vt" style="margin-bottom:3px">Doppler Phase Error Sweep — Array Rotates 0° → 360°</div>
+      <div class="vd"><b>Per-azimuth bearing error</b> plotted as the electronic rotation sweeps the full circle. For a perfect array: flat at 0°. Each antenna error creates a sinusoidal ripple at its azimuth. Obstruction creates a localised dip. This is what a flight inspection recorder captures.</div>
+      <div class="ch" style="height:clamp(130px,14vh,170px)"><canvas id="c-doppler" class="ch-c" role="img" aria-label="Doppler sweep"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ══ SPECTRUM ══ -->
+  <div class="tabp" id="tab-spectrum">
+    <div class="vc">
+      <div class="vt" style="margin-bottom:3px">RF Spectrum — Full 0–20 kHz (Hanning FFT)</div>
+      <div class="vd"><b>Frequency content of the DVOR signal at the receiver.</b> Key lines: <b>30 Hz</b> (AM reference), <b>9960 Hz</b> (FM subcarrier centre), <b>9480 &amp; 10440 Hz</b> (FM sidebands at ±480 Hz). Antenna errors or obstruction raise the inter-modulation floor and cause sideband asymmetry.</div>
+      <div class="ch" style="height:clamp(170px,22vh,250px)"><canvas id="c-fft" class="ch-c" role="img" aria-label="Full spectrum"></canvas></div>
+    </div>
+    <div class="row2">
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">9960 Hz Subcarrier — Sideband Zoom (±2 kHz)</div>
+        <div class="vd">Zoomed view of the FM subcarrier region. <b>Sidebands at 9480 Hz and 10440 Hz should be equal in amplitude.</b> Asymmetry = array or modulator fault. The carrier-to-sideband ratio is set by Bessel J₁(Δf/f_sub).</div>
+        <div class="ch" style="height:clamp(145px,17vh,205px)"><canvas id="c-fft2" class="ch-c" role="img" aria-label="Sideband spectrum"></canvas></div>
+      </div>
+      <div class="vc">
+        <div class="vt" style="margin-bottom:3px">Low-Frequency Spectrum — 30 Hz Reference Zone</div>
+        <div class="vd">Zoomed to <b>0–500 Hz</b>. The <b>30 Hz AM reference</b> should be the dominant feature; its level is proportional to m₀. <b>Harmonics at 60/90 Hz indicate modulator distortion</b> — a real fault visible on a spectrum analyser during maintenance.</div>
+        <div class="ch" style="height:clamp(145px,17vh,205px)"><canvas id="c-fft3" class="ch-c" role="img" aria-label="30Hz spectrum"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ NAV ANALYZER ══ -->
+  <div class="tabp" id="tab-nav">
+    <div class="vc">
+      <div class="vt" style="margin-bottom:3px">NAV Analyzer — FMI Colour Ring &amp; 360° Readout Table</div>
+      <div class="vd">
+        Each degree of azimuth coloured: <b class="ok">green</b> = FMI 15–17 (ICAO OK) · <b class="warn">amber</b> = 14–15 or 17–18 (warning band) · <b class="err">red</b> = outside 14–18 (out-of-tolerance, DVOR should be grounded).
+        Matches the display format of portable flight-inspection NAV analyzers.
+      </div>
+      <div class="nav-panel">
+        <div class="ring-wrap">
+          <canvas id="c-ring" role="img" aria-label="FMI ring"></canvas>
+          <div class="band-key" style="justify-content:center">
+            <span><span class="dot" style="background:var(--fok)"></span>15–17 OK</span>
+            <span><span class="dot" style="background:var(--fwarn)"></span>14–18 warn</span>
+            <span><span class="dot" style="background:var(--ferr)"></span>OOT</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:var(--fs-xs);color:var(--tx3);margin-bottom:4px">
+            FMI nominal = <b style="color:var(--tx)">16.000</b> &nbsp;|&nbsp;
+            ICAO tolerance <b style="color:var(--teal)">15.000 – 17.000</b> &nbsp;|&nbsp;
+            Deviation nominal = 480 Hz
+          </div>
+          <div class="fmi-wrap"><table class="fmi-tbl">
+            <thead><tr><th>AZ(°)</th><th>FMI</th><th>Dev(Hz)</th><th>BrgErr(°)</th><th>ICAO</th></tr></thead>
+            <tbody id="fmi-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- right -->
+</div><!-- root -->
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════
+   DVOR SIMULATOR v6 — CORRECT DOPPLER ARRAY PHYSICS
+   ─────────────────────────────────────────────────────────────────
+   KEY PHYSICS CORRECTION vs previous versions:
+   A circular N-element array factor sum gives near-zero amplitude
+   and ~±180° phase at R=8λ/π — that was WRONG for DVOR.
+
+   CORRECT DVOR model (sequential dipole switching):
+   In a real DVOR, at rotation angle α, ONE dipole fires at position φ_n ≈ α.
+   A receiver at azimuth θ_rx sees path difference = r_n·cos(θ_rx − φ_n).
+   The Doppler-encoded bearing phase is:
+     φ_encoded(θ_rx) = k·R·cos(θ_rx − θ_rotation)
+   As α sweeps 0→2π, this creates FM deviation = k·R·f_rot = 16·30 = 480 Hz.
+   The ENCODED BEARING extracted by the receiver = θ_rx (for perfect array).
+
+   BEARING ERROR for antenna position errors:
+     BrgErr(θ) = (1/N) Σ_n [ k·Δr_n·cos(θ−φ_n) + k·R·Δφ_n·sin(θ−φ_n) ] · (180/π)
+   This is the correct linear perturbation formula.
+   For ΔR=0.3m, N=48, R=6.7m: max error ≈ k·ΔR/N = 0.85° — within ±1°.
+
+   FMI per azimuth:
+     FMI(θ) = FMI_NOM · A · (1 − obstruction_loss(θ))
+   ═══════════════════════════════════════════════════════════════════ */
+
+const D2R=Math.PI/180, R2D=180/Math.PI, C=299792458, TWO_PI=2*Math.PI;
+
+/* ICAO constants */
+const FMI_NOM=16.000, DEV_NOM=480, F_ROT=30, F_SUB=9960;
+const FMI_LO=15.0, FMI_HI=17.0, FMI_WLO=14.0, FMI_WHI=18.0;
+const M0_NOM=0.302;
+
+function wrap180(x){while(x>180)x-=360;while(x<-180)x+=360;return x;}
+function pad3(n){return String(Math.round(n)).padStart(3,'0');}
+
+/* ── ICAO radius formula ── */
+function icaoRadius(freqMHz){
+  const lam=C/(freqMHz*1e6);
+  return 8*lam/Math.PI;   // k·R = 16 exactly → FMI=16
+}
+
+/* ── ITU-R P.526 knife-edge (Rappaport approx) ── */
+function keDB(v){
+  if(v<=-1)return 0;
+  if(v<=0)return 20*Math.log10(0.5-0.62*v);
+  if(v<=1)return 20*Math.log10(0.5*Math.exp(-0.95*v));
+  if(v<=2.4)return 20*Math.log10(0.4-Math.sqrt(Math.max(0,0.1184-Math.pow(0.38-0.1*v,2))));
+  return 20*Math.log10(0.225/v);
+}
+
+/* ── Obstruction loss at azimuth ai (degrees) ── */
+function obsLoss(ai, p, lam){
+  if(!p.obsEn)return{amp:1, phaseErr:0};
+  const dAzDeg=wrap180(ai-p.obsAzD);
+  const halfW=Math.atan2(p.obsW/2,p.obsD)*R2D;
+  if(Math.abs(dAzDeg)>=halfW*2.5)return{amp:1, phaseErr:0};
+  // dipole AGL = counterpoise AGL + height above counterpoise
+  const dipoleAGL=p.cph+p.txH;
+  const hEff=Math.max(0,p.obsH-dipoleAGL);
+  const vv=hEff*Math.sqrt((2/lam)*(1/p.obsD+1/8000));
+  const lossDB=keDB(vv);
+  const lf=Math.pow(10,-Math.abs(lossDB)/20);
+  const cen=Math.max(0,1-Math.abs(dAzDeg)/(halfW*2));
+  return{amp:1-cen*(1-lf), phaseErr:cen*0.05*vv};
+}
+
+/* ════════════════════════════════════════════════════════
+   CORE COMPUTATION — correct Doppler perturbation model
+   ════════════════════════════════════════════════════════
+   For each azimuth θ (0–359°):
+
+   1. FMI(θ) = FMI_NOM · A · obsAmp(θ)
+
+   2. Bearing error (phase error) using perturbation formula:
+      phErr(θ) = Σ_n [ k·Δr_n·cos(θ−φ_n) + k·R·Δφ_n·sin(θ−φ_n) ] / N
+      + obsPhaseErr(θ)
+
+   3. For amplitude/polar pattern:
+      amp(θ) = A · obsAmp(θ)  (with small modulation from errors)
+*/
+function computeAll(p){
+  const lam=C/(p.freq*1e6), k=TWO_PI/lam;
+  const R=p.R;
+  const N=p.N;
+
+  // Build per-antenna errors
+  const antErr=[];
+  for(let n=0;n<N;n++){
+    const e=p.antEn&&p.antErr[n]?p.antErr[n]:{dr:0,dphi:0};
+    antErr.push({dr:parseFloat(e.dr)||0, dphi:(parseFloat(e.dphi)||0)*D2R});
+  }
+  const phi_n=Array.from({length:N},(_,n)=>n*TWO_PI/N);
+
+  const radPat=[], fmiArr=[], devHz=[], phErrArr=[], brgErrArr=[];
+
+  for(let ai=0;ai<360;ai++){
+    const theta=ai*D2R;
+
+    // Obstruction
+    const {amp:oAmp, phaseErr:oPh}=obsLoss(ai,p,lam);
+
+    // FMI at this azimuth — proportional to sideband amplitude × obstruction
+    const fmi=FMI_NOM*p.sb*oAmp;
+
+    // Bearing error from antenna position errors (correct perturbation formula)
+    let phErr=0;
+    for(let n=0;n<N;n++){
+      const {dr,dphi}=antErr[n];
+      // Radial error contribution
+      phErr += k*dr*Math.cos(theta-phi_n[n]);
+      // Angular error contribution
+      phErr += k*R*dphi*Math.sin(theta-phi_n[n]);
+    }
+    phErr /= N;
+    // Add obstruction phase perturbation
+    phErr += oPh;
+
+    // Amplitude pattern: nominal = 1, modulated by errors (small, for polar display)
+    // Use simplified model: amp varies slightly due to constructive/destructive interference
+    let ampRe=0, ampIm=0;
+    for(let n=0;n<N;n++){
+      const {dr}=antErr[n];
+      const dp=k*(R+dr)*Math.cos(theta-phi_n[n]);
+      ampRe+=Math.cos(dp); ampIm+=Math.sin(dp);
+    }
+    const amp=p.sb*oAmp*Math.sqrt(ampRe*ampRe+ampIm*ampIm)/N;
+
+    radPat.push(+amp.toFixed(5));
+    fmiArr.push(+fmi.toFixed(4));
+    devHz.push(+(fmi*F_ROT).toFixed(2));
+    phErrArr.push(+(phErr*R2D).toFixed(4));
+    brgErrArr.push(+(wrap180(phErr*R2D)).toFixed(4));
+  }
+
+  const avg=fmiArr.reduce((a,b)=>a+b,0)/360;
+  const mn=Math.min(...fmiArr), mx=Math.max(...fmiArr);
+  const refFMI=FMI_NOM*p.rm/M0_NOM;
+  const maxErr=Math.max(...brgErrArr.map(Math.abs));
+  const avgDev=DEV_NOM*(avg/FMI_NOM);
+
+  return{radPat,fmiArr,devHz,phErrArr,brgErrArr,lam,avg,mn,mx,
+         refFMI,maxErr,avgDev,fmiRatio:avg/refFMI,antErr,phi_n,k,R};
+}
+
+/* ════ RF Time-domain ════ */
+function buildTimeDomain(p,res,rxAz){
+  const Fs=F_SUB*40, Tw=p.twin/1000;
+  const Ns=Math.min(Math.round(Fs*Tw),4096);
+  const{lam,k,R,antErr,phi_n}=res;
+  const N=p.N;
+
+  // Path-length to receiver at rxAz considering errors
+  // Phase encoded in FM = sum of contributions from each dipole as it fires
+  // Simplified: use the mean path difference at rxAz
+  let pathSum=0;
+  for(let n=0;n<N;n++){
+    const {dr}=antErr[n];
+    pathSum+=k*(R+dr)*Math.cos(rxAz*D2R-phi_n[n]);
+  }
+  const encPhase=(pathSum/N);   // radians — the azimuth-encoded phase
+
+  // Obstruction effect at rxAz
+  const {amp:oAmp}=obsLoss(rxAz,p,lam);
+  const Eamp=p.sb*oAmp;
+  const mFM=p.sb*DEV_NOM/F_SUB;  // FM modulation index of subcarrier
+
+  const t=[],sig=[],sub9960=[],env30=[];
+  for(let i=0;i<Ns;i++){
+    const ti=i/Fs;
+    const ref30=p.rm*Math.cos(TWO_PI*F_ROT*ti);
+    // FM subcarrier: instantaneous freq = F_SUB + Δf·cos(2π·30·t − encPhase)
+    // Integral of inst freq gives phase of subcarrier:
+    const phi_sub=TWO_PI*F_SUB*ti + mFM*Math.sin(TWO_PI*F_ROT*ti - encPhase);
+    const varSub=Eamp*Math.cos(phi_sub);
+    t.push(+(ti*1000).toFixed(4));
+    sig.push(+(1+ref30+varSub).toFixed(5));
+    sub9960.push(+varSub.toFixed(5));
+    env30.push(+ref30.toFixed(5));
+  }
+  return{t,sig,sub9960,env30,Ns,Fs,encPhase,Eamp,mFM,rxAz};
+}
+
+/* ════ FFT (Cooley-Tukey radix-2) ════ */
+function fftR2(re,im){
+  const N=re.length; if(N<=1)return;
+  const ree=new Float64Array(N/2),ime=new Float64Array(N/2);
+  const reo=new Float64Array(N/2),imo=new Float64Array(N/2);
+  for(let i=0;i<N/2;i++){ree[i]=re[2*i];ime[i]=im[2*i];reo[i]=re[2*i+1];imo[i]=im[2*i+1];}
+  fftR2(ree,ime); fftR2(reo,imo);
+  for(let k=0;k<N/2;k++){
+    const a=-TWO_PI*k/N,wr=Math.cos(a),wi=Math.sin(a);
+    const tr=wr*reo[k]-wi*imo[k],ti=wr*imo[k]+wi*reo[k];
+    re[k]=ree[k]+tr; im[k]=ime[k]+ti;
+    re[k+N/2]=ree[k]-tr; im[k+N/2]=ime[k]-ti;
+  }
+}
+function computeFFT(sig,Fs){
+  let N=1; while(N<sig.length)N*=2;
+  const re=new Float64Array(N),im=new Float64Array(N);
+  for(let i=0;i<sig.length;i++){
+    const w=0.5*(1-Math.cos(TWO_PI*i/(sig.length-1)));
+    re[i]=sig[i]*w;
+  }
+  fftR2(re,im);
+  const half=N/2,freqs=[],mags=[];
+  for(let k=0;k<half;k++){
+    freqs.push(+(k*Fs/N).toFixed(1));
+    mags.push(+(20*Math.log10(Math.sqrt(re[k]*re[k]+im[k]*im[k])/half+1e-12)).toFixed(2));
+  }
+  return{freqs,mags};
+}
+
+/* ════ CHART INSTANCES ════ */
+let CH={};
+function gOpts(y0,y1,yL,xL='Azimuth (°)'){
+  return{responsive:true,maintainAspectRatio:false,animation:{duration:50},
+    plugins:{legend:{display:true,labels:{color:'#364e66',font:{size:8},boxWidth:7,padding:6}},
+      tooltip:{backgroundColor:'#0d1520',borderColor:'#243858',borderWidth:1,
+               titleColor:'#ccddf0',bodyColor:'#6888aa',titleFont:{size:9},bodyFont:{size:8}}},
+    scales:{
+      x:{ticks:{color:'#364e66',maxRotation:0,autoSkip:true,maxTicksLimit:13,font:{size:8}},
+         grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'},
+         title:{display:!!xL,text:xL,color:'#364e66',font:{size:8}}},
+      y:{min:y0,max:y1,ticks:{color:'#364e66',font:{size:8}},
+         grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'},
+         title:{display:!!yL,text:yL,color:'#364e66',font:{size:8}}}}};
+}
+function degL(){return Array.from({length:360},(_,i)=>i%30===0?i+'°':'');}
+
+function initCharts(){
+  const L=degL();
+
+  CH.strip=new Chart(document.getElementById('c-strip'),{type:'line',data:{labels:L,datasets:[
+    {label:'FMI variable',data:[],borderColor:'#2474c8',backgroundColor:'rgba(36,116,200,0.06)',borderWidth:1.6,pointRadius:0,tension:0.2,fill:true},
+    {label:'FMI reference (m₀)',data:[],borderColor:'rgba(192,120,8,0.7)',borderWidth:1,borderDash:[5,3],pointRadius:0},
+    {label:'ICAO upper 17.0',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+    {label:'ICAO lower 15.0',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+  ]},options:gOpts(12,20,'FMI (absolute)')});
+
+  CH.phase=new Chart(document.getElementById('c-phase'),{type:'line',data:{labels:L,datasets:[
+    {label:'Phase error = bearing error (°)',data:[],borderColor:'#16966a',backgroundColor:'rgba(22,150,106,0.06)',borderWidth:1.5,pointRadius:0,tension:0.2,fill:true},
+    {label:'±1° ICAO site limit',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+  ]},options:gOpts(-2,2,'Phase / bearing error (°)')});
+
+  CH.err=new Chart(document.getElementById('c-err'),{type:'line',data:{labels:L,datasets:[
+    {label:'Bearing error (°)',data:[],borderColor:'#b83030',backgroundColor:'rgba(184,48,48,0.06)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.2},
+    {label:'±0.5° preferred',data:[],borderColor:'rgba(192,120,8,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(192,120,8,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'±1.0° ICAO site limit',data:[],borderColor:'rgba(22,150,106,0.55)',borderWidth:0.9,borderDash:[2,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(22,150,106,0.55)',borderWidth:0.9,borderDash:[2,4],pointRadius:0},
+    {label:'±2.0° CAT I limit',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(184,48,48,0.55)',borderWidth:0.9,borderDash:[2,5],pointRadius:0},
+  ]},options:gOpts(-2.5,2.5,'Bearing error (°)')});
+
+  CH.scope=new Chart(document.getElementById('c-scope'),{type:'line',data:{labels:[],datasets:[
+    {label:'Composite s(t)',data:[],borderColor:'#2474c8',borderWidth:1.2,pointRadius:0,tension:0},
+    {label:'9960 Hz FM sub',data:[],borderColor:'#16966a',borderWidth:1,pointRadius:0,tension:0},
+    {label:'30 Hz AM ref',data:[],borderColor:'#c07808',borderWidth:1,pointRadius:0,tension:0},
+  ]},options:gOpts(null,null,'Amplitude','Time (ms)')});
+
+  CH.fm=new Chart(document.getElementById('c-fm'),{type:'line',data:{labels:[],datasets:[
+    {label:'FM subcarrier',data:[],borderColor:'#16966a',borderWidth:1.2,pointRadius:0,tension:0},
+  ]},options:gOpts(null,null,'Amplitude','Time (ms)')});
+
+  CH.phdiff=new Chart(document.getElementById('c-phdiff'),{type:'line',data:{labels:[],datasets:[
+    {label:'Encoded bearing phase (°)',data:[],borderColor:'#c07808',borderWidth:1.5,pointRadius:0,tension:0.2},
+  ]},options:gOpts(null,null,'Phase diff (°)','Time (ms)')});
+
+  CH.doppler=new Chart(document.getElementById('c-doppler'),{type:'line',data:{labels:L,datasets:[
+    {label:'Bearing error per azimuth (°)',data:[],borderColor:'#2474c8',backgroundColor:'rgba(36,116,200,0.07)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.2},
+    {label:'±1° ICAO',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+    {label:'',data:[],borderColor:'rgba(22,150,106,0.5)',borderWidth:0.9,borderDash:[3,4],pointRadius:0},
+  ]},options:gOpts(-2,2,'Bearing error (°)')});
+
+  CH.fft=new Chart(document.getElementById('c-fft'),{type:'line',data:{labels:[],datasets:[
+    {label:'Spectrum (dBFS)',data:[],borderColor:'#16966a',backgroundColor:'rgba(22,150,106,0.07)',borderWidth:1.2,pointRadius:0,fill:true,tension:0},
+  ]},options:gOpts(null,null,'Level (dBFS)','Frequency (Hz)')});
+
+  CH.fft2=new Chart(document.getElementById('c-fft2'),{type:'line',data:{labels:[],datasets:[
+    {label:'9960 Hz sidebands (dBFS)',data:[],borderColor:'#c07808',backgroundColor:'rgba(192,120,8,0.07)',borderWidth:1.2,pointRadius:0,fill:true,tension:0},
+  ]},options:gOpts(null,null,'Level (dBFS)','Frequency (Hz)')});
+
+  CH.fft3=new Chart(document.getElementById('c-fft3'),{type:'line',data:{labels:[],datasets:[
+    {label:'30 Hz AM + harmonics (dBFS)',data:[],borderColor:'#b83030',backgroundColor:'rgba(184,48,48,0.07)',borderWidth:1.2,pointRadius:0,fill:true,tension:0},
+  ]},options:gOpts(null,null,'Level (dBFS)','Frequency (Hz)')});
+}
+
+/* ── Polar ── */
+let animAngle=0, animRunning=false, animRAF=null;
+function drawPolar(radPat,showRef,normalize,hlAngle){
+  const ctx=document.getElementById('c-polar').getContext('2d');
+  if(CH.polar)CH.polar.destroy();
+  const mx=normalize?(Math.max(...radPat)||1):1;
+  function xy(vals){const p=vals.map((v,i)=>({x:+(v*Math.sin(i*D2R)).toFixed(4),y:+(v*Math.cos(i*D2R)).toFixed(4)}));p.push(p[0]);return p;}
+  const ds=[{label:'Array pattern',data:xy(radPat.map(v=>v/mx)),borderColor:'#2474c8',backgroundColor:'rgba(36,116,200,0.10)',borderWidth:1.5,pointRadius:0,fill:true,tension:0}];
+  if(showRef) ds.push({label:'Ideal (circular)',data:xy(Array(360).fill(1)),borderColor:'rgba(192,120,8,0.35)',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false,tension:0});
+  if(hlAngle!==undefined){
+    const r=1.15;
+    ds.push({label:'Rotation θ',data:[{x:0,y:0},{x:+(r*Math.sin(hlAngle*D2R)).toFixed(4),y:+(r*Math.cos(hlAngle*D2R)).toFixed(4)}],
+      borderColor:'#b83030',borderWidth:2,pointRadius:[0,5],pointBackgroundColor:['transparent','#b83030'],
+      pointBorderColor:['transparent','#b83030'],fill:false,tension:0});
+  }
+  CH.polar=new Chart(ctx,{type:'scatter',data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:{duration:0},
+    plugins:{legend:{display:true,labels:{color:'#364e66',font:{size:8},boxWidth:7}}},
+    scales:{x:{min:-1.3,max:1.3,ticks:{display:false},grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'}},
+            y:{min:-1.3,max:1.3,ticks:{display:false},grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#243858'}}}}});
+}
+
+function toggleAnim(){
+  animRunning=!animRunning;
+  document.getElementById('btn-anim').textContent=animRunning?'⏸ PAUSE':'▶ ANIMATE';
+  document.getElementById('btn-anim').className=animRunning?'on':'';
+  document.getElementById('b-anim').textContent=animRunning?'▶ ANIMATING':'⏸ PAUSED';
+  if(animRunning)runAnim();
+}
+function runAnim(){
+  if(!animRunning)return;
+  const spd=parseFloat(document.getElementById('anim-spd').value);
+  animAngle=(animAngle+spd*0.5)%360;
+  document.getElementById('anim-angle').textContent='θ = '+pad3(Math.round(animAngle))+'°';
+  const p=getP(); const res=computeAll(p);
+  drawPolar(res.radPat,p.showRef,p.normalize,animAngle);
+  const rxNow=Math.round(animAngle);
+  document.getElementById('rxaz').value=rxNow;
+  document.getElementById('vv-rxaz').textContent=pad3(rxNow)+'°';
+  updateRFCharts(p,res,rxNow);
+  animRAF=requestAnimationFrame(runAnim);
+}
+
+/* ── Static chart updates ── */
+function updateStaticCharts(res,p){
+  const ref=Array(360).fill(+res.refFMI.toFixed(4));
+  CH.strip.data.datasets[0].data=res.fmiArr;
+  CH.strip.data.datasets[1].data=p.showRef?ref:Array(360).fill(null);
+  CH.strip.data.datasets[2].data=Array(360).fill(FMI_HI);
+  CH.strip.data.datasets[3].data=Array(360).fill(FMI_LO);
+  CH.strip.update();
+
+  // Phase chart: phase error (= bearing error in degrees) — flat at 0 for perfect array
+  const lim1=Array(360).fill(1.0), limM1=Array(360).fill(-1.0);
+  CH.phase.data.datasets[0].data=res.phErrArr;
+  CH.phase.data.datasets[1].data=p.showRef?lim1:Array(360).fill(null);
+  CH.phase.data.datasets[2].data=p.showRef?limM1:Array(360).fill(null);
+  const ym_ph=Math.max(1.5,+(Math.max(...res.phErrArr.map(Math.abs))*1.5).toFixed(2));
+  CH.phase.options.scales.y.min=-ym_ph; CH.phase.options.scales.y.max=ym_ph;
+  CH.phase.update();
+
+  const ym=Math.max(1.5,+(Math.max(...res.brgErrArr.map(Math.abs))*1.5).toFixed(2));
+  CH.err.options.scales.y.min=-ym; CH.err.options.scales.y.max=ym;
+  CH.err.data.datasets[0].data=res.brgErrArr;
+  CH.err.data.datasets[1].data=Array(360).fill(0.5);
+  CH.err.data.datasets[2].data=Array(360).fill(-0.5);
+  CH.err.data.datasets[3].data=Array(360).fill(1.0);
+  CH.err.data.datasets[4].data=Array(360).fill(-1.0);
+  CH.err.data.datasets[5].data=Array(360).fill(2.0);
+  CH.err.data.datasets[6].data=Array(360).fill(-2.0);
+  CH.err.update();
+
+  // Doppler sweep = same as bearing error array
+  const ym2=Math.max(1,+(Math.max(...res.brgErrArr.map(Math.abs))*1.6).toFixed(2));
+  CH.doppler.options.scales.y.min=-ym2; CH.doppler.options.scales.y.max=ym2;
+  CH.doppler.data.datasets[0].data=res.brgErrArr;
+  CH.doppler.data.datasets[1].data=Array(360).fill(1.0);
+  CH.doppler.data.datasets[2].data=Array(360).fill(-1.0);
+  CH.doppler.update();
+}
+
+/* ── RF charts ── */
+function updateRFCharts(p,res,rxAz){
+  const td=buildTimeDomain(p,res,rxAz);
+  const fmiRx=(FMI_NOM*td.Eamp).toFixed(3);
+  document.getElementById('scope-title').textContent=
+    `@ Rx ${pad3(rxAz)}°  |  E=${td.Eamp.toFixed(4)}  |  FMI=${fmiRx}  |  encoded bearing=${(td.encPhase*R2D).toFixed(2)}°`;
+
+  const step=Math.max(1,Math.floor(td.Ns/800));
+  const tL=[],sigD=[],subD=[],envD=[];
+  for(let i=0;i<td.Ns;i+=step){tL.push(td.t[i].toFixed(2));sigD.push(td.sig[i]);subD.push(td.sub9960[i]);envD.push(td.env30[i]);}
+  CH.scope.data.labels=tL; CH.scope.data.datasets[0].data=sigD;
+  CH.scope.data.datasets[1].data=subD; CH.scope.data.datasets[2].data=envD; CH.scope.update();
+  CH.fm.data.labels=tL; CH.fm.data.datasets[0].data=subD; CH.fm.update();
+
+  // VAR-REF phase diff — should be constant = rxAz for perfect array
+  const phD=[];
+  for(let i=0;i<td.Ns;i+=step){
+    const t_s=td.t[i]/1000;
+    const refPhase=TWO_PI*F_ROT*t_s;
+    // Instantaneous phase of FM subcarrier
+    const subPhase=TWO_PI*F_SUB*(td.t[i]/1000)+td.mFM*Math.sin(TWO_PI*F_ROT*(td.t[i]/1000)-td.encPhase);
+    // Extract 30Hz component from FM: this is td.encPhase in steady state
+    phD.push(+(td.encPhase*R2D).toFixed(2));
+  }
+  CH.phdiff.data.labels=tL; CH.phdiff.data.datasets[0].data=phD; CH.phdiff.update();
+
+  // FFT
+  const spec=computeFFT(td.sig,td.Fs);
+  const maxF=20000,fi=spec.freqs.findIndex(f=>f>maxF)||spec.freqs.length;
+  CH.fft.data.labels=spec.freqs.slice(0,fi).map(f=>f<1000?+f:+(f/1000).toFixed(1)+'k');
+  CH.fft.data.datasets[0].data=spec.mags.slice(0,fi); CH.fft.update();
+
+  const f0=F_SUB,bw=2000;
+  const i1=Math.max(0,spec.freqs.findIndex(f=>f>=f0-bw));
+  const i2=spec.freqs.findIndex(f=>f>f0+bw)||fi;
+  CH.fft2.data.labels=spec.freqs.slice(i1,i2).map(f=>f.toFixed(0));
+  CH.fft2.data.datasets[0].data=spec.mags.slice(i1,i2); CH.fft2.update();
+
+  const il=spec.freqs.findIndex(f=>f>500)||fi;
+  CH.fft3.data.labels=spec.freqs.slice(1,il).map(f=>f.toFixed(0));
+  CH.fft3.data.datasets[0].data=spec.mags.slice(1,il); CH.fft3.update();
+}
+
+/* ── FMI ring ── */
+function drawRing(fmiArr){
+  const cvs=document.getElementById('c-ring');
+  const sz=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ring').trim())||200;
+  cvs.width=sz*devicePixelRatio; cvs.height=sz*devicePixelRatio;
+  cvs.style.width=sz+'px'; cvs.style.height=sz+'px';
+  const ctx=cvs.getContext('2d'); ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,sz,sz);
+  const cx=sz/2,cy=sz/2,OR=sz*.44,IR=sz*.27;
+  for(let i=0;i<360;i++){
+    const f=fmiArr[i];
+    const col=f>=FMI_LO&&f<=FMI_HI?'#16966a':f>=FMI_WLO&&f<=FMI_WHI?'#c07808':'#b83030';
+    const sa=(i-90.5)*D2R,ea=(i-89.5)*D2R;
+    ctx.beginPath();ctx.arc(cx,cy,OR,sa,ea);ctx.arc(cx,cy,IR,ea,sa,true);ctx.closePath();
+    ctx.fillStyle=col;ctx.fill();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,IR-1,0,TWO_PI);ctx.fillStyle='#07090e';ctx.fill();
+  const avg=fmiArr.reduce((a,b)=>a+b,0)/360;
+  ctx.textAlign='center';
+  ctx.fillStyle='#ccddf0';ctx.font=`bold ${Math.round(sz*.08)}px Courier New`;
+  ctx.fillText(avg.toFixed(3),cx,cy+2);
+  ctx.fillStyle='#364e66';ctx.font=`${Math.round(sz*.052)}px Courier New`;
+  ctx.fillText('FMI avg',cx,cy+sz*.08);
+  ctx.fillText('nom 16.000',cx,cy+sz*.14);
+  for(let a=0;a<360;a+=30){
+    const ra=(a-90)*D2R;
+    ctx.beginPath();ctx.moveTo(cx+(OR+1)*Math.cos(ra),cy+(OR+1)*Math.sin(ra));
+    ctx.lineTo(cx+(OR+6)*Math.cos(ra),cy+(OR+6)*Math.sin(ra));
+    ctx.strokeStyle='#364e66';ctx.lineWidth=0.8;ctx.stroke();
+    ctx.fillStyle='#364e66';ctx.font=`${Math.round(sz*.042)}px Courier New`;ctx.textAlign='center';
+    ctx.fillText(pad3(a),cx+(OR+12)*Math.cos(ra),cy+(OR+12)*Math.sin(ra)+3);
+  }
+}
+
+/* ── FMI table ── */
+function updateTable(res,step){
+  const tb=document.getElementById('fmi-body');tb.innerHTML='';
+  for(let i=0;i<360;i+=step){
+    const f=res.fmiArr[i],dv=res.devHz[i],er=res.brgErrArr[i];
+    const rc=f>=FMI_LO&&f<=FMI_HI?'r-ok':f>=FMI_WLO&&f<=FMI_WHI?'r-warn':'r-err';
+    const fc=f>=FMI_LO&&f<=FMI_HI?'var(--teal)':f>=FMI_WLO&&f<=FMI_WHI?'var(--amber)':'var(--red)';
+    const ec=Math.abs(er)>2?'var(--red)':Math.abs(er)>1?'var(--amber)':Math.abs(er)>0.5?'var(--amber)':'var(--teal)';
+    const st=rc==='r-ok'?'<span style="color:var(--teal)">✓ OK</span>':rc==='r-warn'?'<span style="color:var(--amber)">△ WARN</span>':'<span style="color:var(--red)">⚠ OOT</span>';
+    tb.innerHTML+=`<tr class="${rc}"><td>${pad3(i)}°</td><td style="font-weight:700;color:${fc}">${f.toFixed(3)}</td><td style="color:${fc}">${dv.toFixed(1)}</td><td style="color:${ec}">${er.toFixed(3)}</td><td>${st}</td></tr>`;
+  }
+}
+
+/* ── Top view ── */
+function drawTop(p,res){
+  const cvs=document.getElementById('c-top');
+  const W=cvs.parentElement.clientWidth||420,H=Math.max(155,cvs.parentElement.clientHeight||190);
+  cvs.width=W*devicePixelRatio;cvs.height=H*devicePixelRatio;
+  const ctx=cvs.getContext('2d');ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,W,H);
+  const cx=W*.5,cy=H*.5,viewR=p.R*4.5,sc=Math.min(W,H)*.42/viewR;
+  for(let r=1;r<=4;r++){ctx.beginPath();ctx.arc(cx,cy,r*p.R*sc,0,TWO_PI);ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=.5;ctx.stroke();}
+  ['N','E','S','W'].forEach((l,i)=>{const a=i*Math.PI/2,r=Math.min(W,H)*.46;ctx.fillStyle='#364e66';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText(l,cx+r*Math.sin(a),cy-r*Math.cos(a)+4);});
+  ctx.beginPath();ctx.arc(cx,cy,p.R*sc,0,TWO_PI);ctx.strokeStyle='rgba(36,116,200,0.22)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  res.antErr.forEach((e,n)=>{
+    const phi=res.phi_n[n];
+    const r=p.R+e.dr, ph=phi+e.dphi;
+    const ax=cx+r*sc*Math.sin(ph),ay=cy-r*sc*Math.cos(ph);
+    const isErr=Math.abs(e.dr)>5e-4||Math.abs(e.dphi)>1e-4;
+    ctx.beginPath();ctx.arc(ax,ay,isErr?4:1.8,0,TWO_PI);ctx.fillStyle=isErr?'#b83030':'#2474c8';ctx.fill();
+    if(isErr){
+      const nx=cx+p.R*sc*Math.sin(phi),ny=cy-p.R*sc*Math.cos(phi);
+      ctx.beginPath();ctx.arc(nx,ny,2,0,TWO_PI);ctx.strokeStyle='rgba(184,48,48,0.4)';ctx.lineWidth=.8;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(nx,ny);ctx.lineTo(ax,ay);ctx.strokeStyle='rgba(184,48,48,0.5)';ctx.lineWidth=.8;ctx.stroke();
+      ctx.fillStyle='#b83030';ctx.font='8px Courier New';ctx.textAlign='left';ctx.fillText('#'+n,ax+3,ay-3);
+    }
+  });
+  ctx.beginPath();ctx.arc(cx,cy,5,0,TWO_PI);ctx.fillStyle='#c07808';ctx.fill();
+  ctx.fillStyle='#c07808';ctx.font='8px Courier New';ctx.textAlign='left';ctx.fillText('CTR',cx+7,cy+4);
+  if(p.obsEn){
+    const oSR=Math.min(W,H)*.40,ox=cx+oSR*Math.sin(p.obsAzD*D2R),oy=cy-oSR*Math.cos(p.obsAzD*D2R);
+    const aW=Math.atan2(p.obsW/2,p.obsD),hw=Math.max(3,aW*oSR*1.5),perp=p.obsAzD*D2R+Math.PI/2;
+    ctx.beginPath();ctx.moveTo(ox+hw*Math.cos(perp),oy+hw*Math.sin(perp));ctx.lineTo(ox-hw*Math.cos(perp),oy-hw*Math.sin(perp));ctx.strokeStyle='#b83030';ctx.lineWidth=3;ctx.stroke();
+    const ca1=(p.obsAzD*D2R-aW*2)-Math.PI/2,ca2=(p.obsAzD*D2R+aW*2)-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,oSR,ca1,ca2);ctx.closePath();ctx.fillStyle='rgba(184,48,48,0.07)';ctx.fill();
+    ctx.fillStyle='#b83030';ctx.font='8px Courier New';ctx.textAlign='left';
+    ctx.fillText(p.obsH.toFixed(0)+'m AGL @'+pad3(p.obsAzD)+'° d='+p.obsD+'m',ox+6,oy-5);
+  }
+  const bl=res.lam*sc,bx=6,by=H-10;
+  ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+bl,by);ctx.strokeStyle='#364e66';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#364e66';ctx.font='8px Courier New';ctx.textAlign='left';
+  ctx.fillText('1λ='+res.lam.toFixed(3)+'m  R='+p.R.toFixed(3)+'m',bx,by-3);
+}
+
+/* ── Metrics & pills ── */
+function updateMetrics(res){
+  function set(i,v,cls){document.getElementById('mv'+i).innerHTML=v;document.getElementById('mc'+i).className='mc '+cls;}
+  const fc=res.avg>=FMI_LO&&res.avg<=FMI_HI?'ok':res.avg>=FMI_WLO&&res.avg<=FMI_WHI?'warn':'err';
+  set(0,res.avg.toFixed(4),fc);set(1,res.refFMI.toFixed(4),'ok');
+  document.getElementById('mv2').innerHTML=res.mn.toFixed(3)+'<br>'+res.mx.toFixed(3);
+  document.getElementById('mc2').className='mc '+(res.mx-res.mn>0.8?'warn':'ok');
+  const ec=res.maxErr>2?'err':res.maxErr>1?'warn':'ok';
+  set(3,res.maxErr.toFixed(4),ec);set(4,res.avgDev.toFixed(2),'ok');
+  const rc=res.fmiRatio>.95&&res.fmiRatio<1.05?'ok':res.fmiRatio>.9&&res.fmiRatio<1.1?'warn':'err';
+  set(5,res.fmiRatio.toFixed(5),rc);
+
+  // Pills
+  function pill(id,text,cls){const e=document.getElementById(id);if(e){e.textContent=text;e.className='vpill '+cls;}}
+  const polarOk=res.mn>0.8&&(res.mx-res.mn)<0.1;
+  pill('pill-polar',polarOk?'Circular ✓':'⚠ Distorted',polarOk?'ok':'warn');
+  const fmiOk=res.avg>=FMI_LO&&res.avg<=FMI_HI;
+  pill('pill-fmi',fmiOk?'FMI OK ✓':'⚠ FMI OOT',fmiOk?'ok':'warn');
+  const phOk=Math.max(...res.phErrArr.map(Math.abs))<=1.0;
+  pill('pill-phase',phOk?'Phase OK ✓':'⚠ Phase err',phOk?'ok':'warn');
+  const errOk=res.maxErr<=1.0,errCat=res.maxErr<=2.0;
+  pill('pill-err',errOk?'Brg OK ✓':errCat?'⚠ >1°':'⚠ CAT I fail',errOk?'ok':errCat?'warn':'err');
+
+  const sb=document.getElementById('stbar');sb.className='stbar';
+  let m=`FMI=${res.avg.toFixed(4)} | range ${res.mn.toFixed(3)}–${res.mx.toFixed(3)} | dev ${res.avgDev.toFixed(1)}Hz | maxBrgErr ${res.maxErr.toFixed(4)}° | FMI ratio ${res.fmiRatio.toFixed(5)}`;
+  if(res.avg<FMI_LO||res.avg>FMI_HI){sb.classList.add('warn');m='⚠ '+m+' ← FMI outside 15–17';}
+  else if(res.maxErr>2){sb.classList.add('err');m='⚠ '+m+' ← bearing err >2° CAT I FAIL';}
+  else if(res.maxErr>1){sb.classList.add('warn');m='⚠ '+m+' ← bearing err >1° ICAO site limit';}
+  else m='✓ '+m+' ← within ICAO limits';
+  sb.textContent=m;
+}
+
+/* ── Params ── */
+function getP(){
+  const freq=+document.getElementById('freq').value;
+  const R=icaoRadius(freq);
+  const cph=+document.getElementById('cph').value;
+  const txh=+document.getElementById('txh').value;
+  return{freq,R,N:+document.getElementById('ndip').value,
+    sb:+document.getElementById('sb').value,
+    rm:+document.getElementById('rm').value,
+    cph, txH:txh,
+    obsEn:document.getElementById('obs-en').checked,
+    obsH:+document.getElementById('obs-h').value,
+    obsD:+document.getElementById('obs-d').value,
+    obsAzD:+document.getElementById('obs-az').value,
+    obsW:+document.getElementById('obs-w').value,
+    showRef:document.getElementById('showref').checked,
+    normalize:document.getElementById('norm').checked,
+    step:+document.getElementById('tstep').value,
+    antEn:document.getElementById('ant-en').checked,
+    antErr:readAntErrors(),
+    rxAz:+document.getElementById('rxaz').value,
+    twin:+document.getElementById('twin').value};
+}
+function updateLabels(p){
+  const lam=C/(p.freq*1e6);
+  const dipAGL=(p.cph+p.txH);
+  document.getElementById('vv-f').textContent=p.freq.toFixed(2);
+  document.getElementById('vv-sb').textContent=p.sb.toFixed(3);
+  document.getElementById('vv-rm').textContent=p.rm.toFixed(3);
+  document.getElementById('vv-cph').textContent=p.cph.toFixed(2)+'m';
+  document.getElementById('vv-txh').textContent=p.txH.toFixed(2)+'m';
+  document.getElementById('total-tx-ht').textContent=dipAGL.toFixed(2)+'m';
+  document.getElementById('vv-oh').textContent=p.obsH.toFixed(1)+'m';
+  document.getElementById('vv-od').textContent=p.obsD+'m';
+  document.getElementById('vv-oaz').textContent=pad3(p.obsAzD)+'°';
+  document.getElementById('vv-ow').textContent=p.obsW+'m';
+  document.getElementById('vv-rxaz').textContent=pad3(p.rxAz)+'°';
+  document.getElementById('vv-twin').textContent=p.twin+'ms';
+  document.getElementById('ro-r').textContent=p.R.toFixed(4)+' m';
+  document.getElementById('b-f').textContent=p.freq.toFixed(2)+' MHz';
+  document.getElementById('b-l').textContent='λ='+lam.toFixed(4)+'m';
+  document.getElementById('b-r').textContent='R='+p.R.toFixed(3)+'m';
+  document.getElementById('b-n').textContent='N='+p.N;
+  document.getElementById('tx-agl').textContent=dipAGL.toFixed(2)+'m';
+  const hEff=Math.max(0,p.obsH-dipAGL);
+  document.getElementById('eff-obs').textContent=hEff.toFixed(2)+'m';
+  if(p.obsEn&&p.obsD>0){
+    const vv=hEff*Math.sqrt((2/lam)*(1/p.obsD+1/8000));
+    document.getElementById('vv-fresnel').textContent=vv.toFixed(3);
+    document.getElementById('vv-dloss').textContent=Math.abs(keDB(vv)).toFixed(1);
+  }else{document.getElementById('vv-fresnel').textContent='—';document.getElementById('vv-dloss').textContent='—';}
+}
+
+/* ── Antenna table ── */
+let lastN=48;
+function buildAntTable(N){
+  const tb=document.getElementById('aet-body');tb.innerHTML='';
+  for(let n=0;n<N;n++){
+    tb.innerHTML+=`<tr id="arow-${n}"><td style="color:var(--tx3)">${n}</td>
+      <td><input type="number" id="dr-${n}" value="0" step="0.01" min="-3" max="3" oninput="schedUpdate()"></td>
+      <td><input type="number" id="dp-${n}" value="0" step="0.1" min="-15" max="15" oninput="schedUpdate()"></td>
+      <td id="anote-${n}" style="color:var(--tx3);font-size:8px">nom</td></tr>`;
+  }
+}
+function readAntErrors(){
+  const N=+document.getElementById('ndip').value,out={};
+  for(let n=0;n<N;n++){
+    const dEl=document.getElementById('dr-'+n),pEl=document.getElementById('dp-'+n);
+    if(!dEl)continue;
+    const dr=parseFloat(dEl.value)||0,dphi=parseFloat(pEl.value)||0;
+    out[n]={dr,dphi};
+    const row=document.getElementById('arow-'+n),note=document.getElementById('anote-'+n);
+    if(row&&note){
+      if(dr||dphi){row.style.background='rgba(184,48,48,.1)';const pt=[];if(dr)pt.push('ΔR='+dr.toFixed(3)+'m');if(dphi)pt.push('Δφ='+dphi.toFixed(1)+'°');note.textContent=pt.join(' ');note.style.color='var(--amber)';}
+      else{row.style.background='';note.textContent='nom';note.style.color='var(--tx3)';}
+    }
+  }
+  return out;
+}
+function sv(id,v){const e=document.getElementById(id);if(e)e.value=v;}
+function applyPreset(){
+  const N=+document.getElementById('ndip').value;buildAntTable(N);
+  const pr=document.getElementById('preset').value;
+  if(pr==='r1')sv('dr-0','0.300');
+  else if(pr==='r2')sv('dr-0','-0.200');
+  else if(pr==='a1')sv('dp-0','3.0');
+  else if(pr==='two'){sv('dr-0','0.300');sv('dp-'+Math.floor(N/4),'3.5');sv('dr-'+Math.floor(N/2),'-0.200');}
+  else if(pr==='rand'){for(let n=0;n<N;n++){sv('dr-'+n,((Math.random()-.5)*.08).toFixed(4));sv('dp-'+n,((Math.random()-.5)*.4).toFixed(3));}}
+  if(pr!=='none'){document.getElementById('ant-en').checked=true;document.getElementById('aet-wrap').style.display='block';}
+  schedUpdate();
+}
+function switchTab(el,id){
+  document.querySelectorAll('.tabp').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  el.classList.add('on');
+}
+
+/* ── Main update ── */
+let raf=null;
+function schedUpdate(){if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(doUpdate);}
+function doUpdate(){
+  const p=getP();
+  if(p.N!==lastN){lastN=p.N;buildAntTable(p.N);}
+  updateLabels(p);
+  const res=computeAll(p);
+  if(!animRunning)drawPolar(res.radPat,p.showRef,p.normalize,undefined);
+  updateStaticCharts(res,p);
+  updateRFCharts(p,res,p.rxAz);
+  drawRing(res.fmiArr);
+  updateTable(res,p.step);
+  updateMetrics(res);
+  drawTop(p,res);
+}
+
+/* ── Wire controls ── */
+document.querySelectorAll('input:not([type=number]),select').forEach(el=>el.addEventListener('input',schedUpdate));
+document.getElementById('ant-en').addEventListener('change',()=>{
+  document.getElementById('aet-wrap').style.display=document.getElementById('ant-en').checked?'block':'none';
+  schedUpdate();
+});
+
+initCharts();buildAntTable(48);doUpdate();
+</script>
+</body>
+</html>
